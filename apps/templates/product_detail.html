@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ product.sku }} - Product Details{% endblock %}
+
+{% block page_title %}Product Details{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'apps:dashboard' %}">Home</a></li>
+<li class="breadcrumb-item"><a href="{% url 'apps:products_list' %}">Products</a></li>
+<li class="breadcrumb-item active">{{ product.sku }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Product Info Card -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>{{ product.get_full_name }}</strong>
+                <div>
+                    <a href="{% url 'apps:product_edit' product.id %}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">SKU / Item No</p>
+                        <h6>{{ product.sku }}</h6>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Barcode</p>
+                        <h6>{{ product.barcode|default:"N/A" }}</h6>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Brand</p>
+                        <h6>{{ product.brand.name }}</h6>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Concentration</p>
+                        <h6>{{ product.get_concentration_display }}</h6>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Size</p>
+                        <h6>{{ product.size_ml }} ml</h6>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Batch No</p>
+                        <h6>{{ product.batch_no|default:"N/A" }}</h6>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="text-center p-3 bg-light rounded">
+                            <p class="text-muted mb-1">Cost Price</p>
+                            <h5 class="mb-0">{{ product.cost_price }}</h5>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center p-3 bg-light rounded">
+                            <p class="text-muted mb-1">Wholesale Price</p>
+                            <h5 class="mb-0">{{ product.wholesale_price }}</h5>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center p-3 bg-light rounded">
+                            <p class="text-muted mb-1">Retail Price</p>
+                            <h5 class="mb-0">{{ product.retail_price }}</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales History -->
+        <div class="card">
+            <div class="card-header">
+                <strong>Recent Sales</strong>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Invoice</th>
+                                <th>Customer</th>
+                                <th>Qty</th>
+                                <th>Price</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in sales %}
+                            <tr>
+                                <td>{{ sale.created_at|date:"d M Y" }}</td>
+                                <td>{{ sale.invoice.invoice_number }}</td>
+                                <td>{{ sale.invoice.customer.name }}</td>
+                                <td>{{ sale.quantity }}</td>
+                                <td>{{ sale.unit_price }}</td>
+                                <td>{{ sale.amount }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">No sales yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Adjustments -->
+        <div class="card">
+            <div class="card-header">
+                <strong>Stock Adjustments</strong>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Qty</th>
+                                <th>Previous</th>
+                                <th>New</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for adj in adjustments %}
+                            <tr>
+                                <td>{{ adj.created_at|date:"d M Y H:i" }}</td>
+                                <td>
+                                    {% if adj.adjustment_type == 'ADD' %}
+                                    <span class="badge bg-success">Add</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Remove</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ adj.quantity }}</td>
+                                <td>{{ adj.previous_qty }}</td>
+                                <td>{{ adj.new_qty }}</td>
+                                <td>{{ adj.reason|truncatewords:5 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">No adjustments yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Stock Status -->
+        <div class="card">
+            <div class="card-header">
+                <strong>Stock Status</strong>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <h1 class="display-4 fw-bold {% if product.is_low_stock %}text-warning{% elif product.stock_qty == 0 %}text-danger{% else %}text-success{% endif %}">
+                        {{ product.stock_qty }}
+                    </h1>
+                    <p class="text-muted">Units Available</p>
+                </div>
+                
+                <div class="mb-3">
+                    <p class="mb-1">Reorder Level: <strong>{{ product.reorder_level }}</strong></p>
+                    {% if product.is_low_stock %}
+                    <span class="badge bg-warning">⚠️ Low Stock</span>
+                    {% elif product.stock_qty == 0 %}
+                    <span class="badge bg-danger">Out of Stock</span>
+                    {% else %}
+                    <span class="badge bg-success">✓ In Stock</span>
+                    {% endif %}
+                </div>
+                
+                <a href="{% url 'apps:stock_adjustment' %}?product={{ product.id }}" class="btn btn-primary w-100">
+                    <i class="bi bi-arrow-repeat"></i> Adjust Stock
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="card">
+            <div class="card-header">
+                <strong>Statistics</strong>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Total Sold</span>
+                        <strong>{{ total_sold }} units</strong>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Stock Value</span>
+                        <strong>{{ product.stock_qty|floatformat:2 }} × {{ product.cost_price }}</strong>
+                    </div>
+                </div>
+
+                {% if product.supplier %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Supplier</span>
+                        <strong>{{ product.supplier.name }}</strong>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="mb-0">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Status</span>
+                        {% if product.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

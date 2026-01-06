@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block title %}Stock History - Perfume Billing System{% endblock %}
+
+{% block page_title %}Stock Adjustment History{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'apps:dashboard' %}">Home</a></li>
+<li class="breadcrumb-item"><a href="{% url 'apps:inventory_list' %}">Inventory</a></li>
+<li class="breadcrumb-item active">History</li>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>All Stock Adjustments</span>
+        <a href="{% url 'apps:stock_adjustment' %}" class="btn btn-primary btn-sm btn-icon">
+            <i class="bi bi-plus-lg"></i> New Adjustment
+        </a>
+    </div>
+    <div class="card-body">
+        <!-- Filters -->
+        <form method="get" class="mb-4">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <select name="product" class="form-select">
+                        <option value="">All Products</option>
+                        {% for product in products %}
+                        <option value="{{ product.id }}" {% if request.GET.product == product.id|stringformat:"s" %}selected{% endif %}>
+                            {{ product.sku }} - {{ product.fragrance_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select name="adjustment_type" class="form-select">
+                        <option value="">All Types</option>
+                        {% for key, value in adjustment_types %}
+                        <option value="{{ key }}" {% if request.GET.adjustment_type == key %}selected{% endif %}>
+                            {{ value }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search"></i> Filter
+                    </button>
+                </div>
+                <div class="col-md-3">
+                    <a href="{% url 'apps:stock_history' %}" class="btn btn-secondary w-100">
+                        <i class="bi bi-x"></i> Clear Filters
+                    </a>
+                </div>
+            </div>
+        </form>
+
+        <!-- History Table -->
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Date & Time</th>
+                        <th>Product</th>
+                        <th>Type</th>
+                        <th>Quantity</th>
+                        <th>Previous Stock</th>
+                        <th>New Stock</th>
+                        <th>Reason</th>
+                        <th>Reference</th>
+                        <th>User</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for adj in page_obj %}
+                    <tr>
+                        <td><strong>{{ adj.adjustment_id }}</strong></td>
+                        <td>
+                            <div>{{ adj.created_at|date:"d M Y" }}</div>
+                            <small class="text-muted">{{ adj.created_at|date:"H:i" }}</small>
+                        </td>
+                        <td>
+                            <div><strong>{{ adj.product.sku }}</strong></div>
+                            <small class="text-muted">{{ adj.product.fragrance_name }}</small>
+                        </td>
+                        <td>
+                            {% if adj.adjustment_type == 'ADD' %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-plus-circle"></i> Add
+                            </span>
+                            {% elif adj.adjustment_type == 'REMOVE' %}
+                            <span class="badge bg-danger">
+                                <i class="bi bi-dash-circle"></i> Remove
+                            </span>
+                            {% else %}
+                            <span class="badge bg-info">
+                                <i class="bi bi-arrow-repeat"></i> Correction
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>
+                                {% if adj.adjustment_type == 'ADD' %}+{% else %}-{% endif %}
+                                {{ adj.quantity }}
+                            </strong>
+                        </td>
+                        <td>{{ adj.previous_qty }}</td>
+                        <td>
+                            <strong class="text-primary">{{ adj.new_qty }}</strong>
+                        </td>
+                        <td>
+                            <span title="{{ adj.reason }}">
+                                {{ adj.reason|truncatewords:10 }}
+                            </span>
+                        </td>
+                        <td>{{ adj.reference_no|default:"-" }}</td>
+                        <td>
+                            <small>{{ adj.created_by.get_full_name|default:adj.created_by.username }}</small>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-4">
+                            <i class="bi bi-inbox" style="font-size: 3rem; color: #cbd5e1;"></i>
+                            <p class="text-muted mt-2">No stock adjustments found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1">First</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                </li>
+                {% endif %}
+                
+                <li class="page-item disabled">
+                    <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

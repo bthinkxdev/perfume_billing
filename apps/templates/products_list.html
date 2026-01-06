@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+
+{% block title %}Products - Perfume Billing System{% endblock %}
+
+{% block page_title %}Products{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'apps:dashboard' %}">Home</a></li>
+<li class="breadcrumb-item active">Products</li>
+{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1" style="font-size: 0.875rem;">Total Products</p>
+                        <h3 class="mb-0 fw-bold">{{ total_products }}</h3>
+                    </div>
+                    <div class="bg-primary bg-opacity-10 p-3 rounded">
+                        <i class="bi bi-box-seam text-primary" style="font-size: 1.5rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1" style="font-size: 0.875rem;">Low Stock</p>
+                        <h3 class="mb-0 fw-bold text-warning">{{ page_obj.paginator.object_list|length }}</h3>
+                    </div>
+                    <div class="bg-warning bg-opacity-10 p-3 rounded">
+                        <i class="bi bi-exclamation-triangle text-warning" style="font-size: 1.5rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters & Search -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>All Products</span>
+        <a href="{% url 'apps:product_create' %}" class="btn btn-primary btn-sm btn-icon">
+            <i class="bi bi-plus-lg"></i> Add Product
+        </a>
+    </div>
+    <div class="card-body">
+        <!-- Search & Filter Form -->
+        <form method="get" class="mb-4">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <input type="text" name="search" class="form-control" placeholder="Search SKU, Barcode, Name..." value="{{ search }}">
+                </div>
+                <div class="col-md-2">
+                    <select name="brand" class="form-select">
+                        <option value="">All Brands</option>
+                        {% for brand in brands %}
+                        <option value="{{ brand.id }}" {% if request.GET.brand == brand.id|stringformat:"s" %}selected{% endif %}>
+                            {{ brand.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="concentration" class="form-select">
+                        <option value="">All Types</option>
+                        {% for key, value in concentration_choices %}
+                        <option value="{{ key }}" {% if request.GET.concentration == key %}selected{% endif %}>
+                            {{ value }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="status" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                        <option value="low_stock" {% if request.GET.status == 'low_stock' %}selected{% endif %}>Low Stock</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Products Table -->
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Barcode</th>
+                        <th>Product Name</th>
+                        <th>Brand</th>
+                        <th>Size</th>
+                        <th>Stock</th>
+                        <th>Cost</th>
+                        <th>Wholesale</th>
+                        <th>Retail</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in page_obj %}
+                    <tr>
+                        <td><strong>{{ product.sku }}</strong></td>
+                        <td>{{ product.barcode|default:"-" }}</td>
+                        <td>
+                            <div>{{ product.fragrance_name }}</div>
+                            <small class="text-muted">{{ product.get_concentration_display }}</small>
+                        </td>
+                        <td>{{ product.brand.name }}</td>
+                        <td>{{ product.size_ml }} ml</td>
+                        <td>
+                            {% if product.is_low_stock %}
+                            <span class="badge bg-warning">{{ product.stock_qty }}</span>
+                            {% elif product.stock_qty == 0 %}
+                            <span class="badge bg-danger">Out</span>
+                            {% else %}
+                            <span class="badge bg-success">{{ product.stock_qty }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ product.cost_price }}</td>
+                        <td>{{ product.wholesale_price }}</td>
+                        <td>{{ product.retail_price }}</td>
+                        <td>
+                            {% if product.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'apps:product_detail' product.id %}" class="btn btn-outline-primary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'apps:product_edit' product.id %}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'apps:product_delete' product.id %}" class="btn btn-outline-danger" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center py-4">
+                            <i class="bi bi-inbox" style="font-size: 3rem; color: #cbd5e1;"></i>
+                            <p class="text-muted mt-2">No products found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}">First</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}">Previous</a>
+                </li>
+                {% endif %}
+                
+                <li class="page-item disabled">
+                    <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}">Next</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}">Last</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

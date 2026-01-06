@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+
+{% block title %}Settlement History - Perfume Billing System{% endblock %}
+
+{% block page_title %}Settlement History{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'apps:dashboard' %}">Home</a></li>
+<li class="breadcrumb-item active">Settlement History</li>
+{% endblock %}
+
+{% block content %}
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted mb-1">Total Sales</p>
+                        <h4 class="mb-0">{{ summary.total_sales|floatformat:2|default:"0.00" }}</h4>
+                    </div>
+                    <div class="text-primary fs-1">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted mb-1">Total Collected</p>
+                        <h4 class="mb-0 text-success">{{ summary.total_paid|floatformat:2|default:"0.00" }}</h4>
+                    </div>
+                    <div class="text-success fs-1">
+                        <i class="bi bi-cash-coin"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted mb-1">Outstanding</p>
+                        <h4 class="mb-0 text-danger">{{ summary.total_outstanding|floatformat:2|default:"0.00" }}</h4>
+                    </div>
+                    <div class="text-danger fs-1">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted mb-1">Customers</p>
+                        <h4 class="mb-0">{{ customers.count }}</h4>
+                    </div>
+                    <div class="text-info fs-1">
+                        <i class="bi bi-people"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <strong><i class="bi bi-funnel"></i> Filters</strong>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Search Customer</label>
+                <input type="text" name="search" class="form-control" 
+                       placeholder="Name, ID, Phone..." value="{{ search }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Customer Type</label>
+                <select name="customer_type" class="form-select">
+                    <option value="">All Types</option>
+                    {% for key, value in customer_types %}
+                    <option value="{{ key }}" {% if customer_type == key %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-5 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Filter
+                </button>
+                <a href="{% url 'apps:settlement_history' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Customers Table -->
+<div class="card">
+    <div class="card-header">
+        <strong>Customer Settlement Summary</strong>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Type</th>
+                        <th>Total Sales</th>
+                        <th>Total Paid</th>
+                        <th>Outstanding</th>
+                        <th>Invoices</th>
+                        <th>Payments</th>
+                        <th>Collection %</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in customers %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'apps:customer_detail' customer.id %}">
+                                <strong>{{ customer.name }}</strong>
+                            </a>
+                            <br>
+                            <small class="text-muted">{{ customer.customer_id }}</small>
+                        </td>
+                        <td>
+                            <span class="badge {% if customer.customer_type == 'WHOLESALE' %}bg-primary{% else %}bg-info{% endif %}">
+                                {{ customer.get_customer_type_display }}
+                            </span>
+                        </td>
+                        <td><strong>{{ customer.total_sales|floatformat:2 }}</strong></td>
+                        <td class="text-success"><strong>{{ customer.total_paid|floatformat:2 }}</strong></td>
+                        <td>
+                            {% if customer.outstanding_balance > 0 %}
+                            <strong class="text-danger">{{ customer.outstanding_balance|floatformat:2 }}</strong>
+                            {% else %}
+                            <span class="text-muted">0.00</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ customer.invoice_count }}</td>
+                        <td>{{ customer.payment_count }}</td>
+                        <td>
+                            {% widthratio customer.total_paid customer.total_sales 100 as collection_pct %}
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar {% if collection_pct >= 80 %}bg-success{% elif collection_pct >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ collection_pct }}%">
+                                    {{ collection_pct }}%
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <a href="{% url 'apps:customer_ledger_detail' customer.id %}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-journal-text"></i> Ledger
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            No customer data found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

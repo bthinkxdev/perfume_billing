@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+
+{% block title %}Record Payment - Perfume Billing System{% endblock %}
+
+{% block page_title %}Record Payment{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'apps:dashboard' %}">Home</a></li>
+<li class="breadcrumb-item active">Payment Entry</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <strong>Payment Information</strong>
+            </div>
+            <div class="card-body">
+                <form method="post" id="paymentForm">
+                    {% csrf_token %}
+                    
+                    <!-- Invoice Selection -->
+                    <div class="mb-3">
+                        <label class="form-label">Select Invoice <span class="text-danger">*</span></label>
+                        <select name="invoice" id="invoiceSelect" class="form-select" required onchange="updateInvoiceInfo()">
+                            <option value="">Choose invoice...</option>
+                            {% for inv in outstanding_invoices %}
+                            <option value="{{ inv.id }}" 
+                                    data-customer="{{ inv.customer.name }}"
+                                    data-customer-id="{{ inv.customer.customer_id }}"
+                                    data-balance="{{ inv.balance_due }}"
+                                    data-total="{{ inv.grand_total }}"
+                                    data-paid="{{ inv.paid_amount }}"
+                                    {% if invoice and invoice.id == inv.id %}selected{% endif %}>
+                                {{ inv.invoice_number }} - {{ inv.customer.name }} - Balance: {{ inv.balance_due|floatformat:2 }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Invoice Info Display -->
+                    <div id="invoiceInfo" class="alert alert-info" style="{% if not invoice %}display: none;{% endif %}">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Customer:</strong> <span id="customerName">{% if invoice %}{{ invoice.customer.name }}{% endif %}</span></p>
+                                <p class="mb-0"><strong>Customer ID:</strong> <span id="customerId">{% if invoice %}{{ invoice.customer.customer_id }}{% endif %}</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Invoice Total:</strong> <span id="invoiceTotal">{% if invoice %}{{ invoice.grand_total|floatformat:2 }}{% endif %}</span></p>
+                                <p class="mb-1"><strong>Already Paid:</strong> <span id="paidAmount">{% if invoice %}{{ invoice.paid_amount|floatformat:2 }}{% endif %}</span></p>
+                                <p class="mb-0"><strong>Balance Due:</strong> <span id="balanceDue" class="text-danger fw-bold">{% if invoice %}{{ invoice.balance_due|floatformat:2 }}{% endif %}</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <!-- Amount -->
+                        <div class="col-md-6">
+                            <label class="form-label">Payment Amount <span class="text-danger">*</span></label>
+                            <input type="number" name="amount" id="amountInput" class="form-control" 
+                                   step="0.01" min="0.01" required 
+                                   placeholder="Enter amount"
+                                   {% if invoice %}max="{{ invoice.balance_due }}"{% endif %}
+                                   onchange="validateAmount()">
+                            <div id="amountError" class="text-danger mt-1" style="display: none;"></div>
+                        </div>
+
+                        <!-- Payment Method -->
+                        <div class="col-md-6">
+                            <label class="form-label">Payment Method <span class="text-danger">*</span></label>
+                            <select name="payment_method" class="form-select" required>
+                                {% for key, value in payment_methods %}
+                                <option value="{{ key }}">{{ value }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Reference Number -->
+                        <div class="col-md-6">
+                            <label class="form-label">Reference Number</label>
+                            <input type="text" name="reference_no" class="form-control" 
+                                   placeholder="Cheque no, Transaction ID, etc.">
+                        </div>
+
+                        <!-- Payment Date (auto-filled) -->
+                        <div class="col-md-6">
+                            <label class="form-label">Payment Date</label>
+                            <input type="text" class="form-control" readonly value="{{ today|date:'d M Y' }}">
+                            <small class="text-muted">Payment will be recorded with current date/time</small>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="col-md-12">
+                            <label class="form-label">Notes (Optional)</label>
+                            <textarea name="notes" class="form-control" rows="3" 
+                                      placeholder="Any additional notes about this payment..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Quick Amount Buttons -->
+                    <div id="quickAmounts" class="mb-3" style="{% if not invoice %}display: none;{% endif %}">
+                        <label class="form-label">Quick Fill:</label>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setQuickAmount('half')">
+                                Half
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="setQuickAmount('full')">
+                                Full Balance
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a href="{% url 'apps:outstanding_list' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-success btn-icon">
+                            <i class="bi bi-check-circle"></i> Record Payment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Recent Payments Preview -->
+        <div class="card">
+            <div class="card-header">
+                <strong>💡 Payment Tips</strong>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li>Always verify the payment amount before recording</li>
+                    <li>Add reference numbers for cheques and bank transfers</li>
+                    <li>Payment cannot exceed the invoice balance due</li>
+                    <li>Customer's outstanding balance will be automatically updated</li>
+                    <li>You can make partial payments - remaining balance stays outstanding</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentBalance = 0;
+
+function updateInvoiceInfo() {
+    const select = document.getElementById('invoiceSelect');
+    const option = select.options[select.selectedIndex];
+    
+    if (option.value) {
+        // Update info display
+        document.getElementById('customerName').textContent = option.getAttribute('data-customer');
+        document.getElementById('customerId').textContent = option.getAttribute('data-customer-id');
+        document.getElementById('invoiceTotal').textContent = parseFloat(option.getAttribute('data-total')).toFixed(2);
+        document.getElementById('paidAmount').textContent = parseFloat(option.getAttribute('data-paid')).toFixed(2);
+        document.getElementById('balanceDue').textContent = parseFloat(option.getAttribute('data-balance')).toFixed(2);
+        
+        currentBalance = parseFloat(option.getAttribute('data-balance'));
+        
+        // Update amount input max
+        document.getElementById('amountInput').max = currentBalance;
+        
+        // Show info
+        document.getElementById('invoiceInfo').style.display = 'block';
+        document.getElementById('quickAmounts').style.display = 'block';
+    } else {
+        document.getElementById('invoiceInfo').style.display = 'none';
+        document.getElementById('quickAmounts').style.display = 'none';
+    }
+}
+
+function validateAmount() {
+    const amount = parseFloat(document.getElementById('amountInput').value);
+    const errorDiv = document.getElementById('amountError');
+    
+    if (amount > currentBalance) {
+        errorDiv.textContent = `Amount cannot exceed balance due (${currentBalance.toFixed(2)})`;
+        errorDiv.style.display = 'block';
+        document.getElementById('amountInput').classList.add('is-invalid');
+        return false;
+    } else {
+        errorDiv.style.display = 'none';
+        document.getElementById('amountInput').classList.remove('is-invalid');
+        return true;
+    }
+}
+
+function setQuickAmount(type) {
+    const amountInput = document.getElementById('amountInput');
+    
+    if (type === 'half') {
+        amountInput.value = (currentBalance / 2).toFixed(2);
+    } else if (type === 'full') {
+        amountInput.value = currentBalance.toFixed(2);
+    }
+    
+    validateAmount();
+}
+
+// Initialize if invoice is pre-selected
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('invoiceSelect').value) {
+        updateInvoiceInfo();
+    }
+});
+
+// Validate on form submit
+document.getElementById('paymentForm').addEventListener('submit', function(e) {
+    if (!validateAmount()) {
+        e.preventDefault();
+        alert('Please enter a valid payment amount');
+    }
+});
+</script>
+{% endblock %}

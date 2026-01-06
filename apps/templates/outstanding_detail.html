@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ customer.name }} - Outstanding Details{% endblock %}
+
+{% block page_title %}Outstanding Details{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'apps:dashboard' %}">Home</a></li>
+<li class="breadcrumb-item"><a href="{% url 'apps:outstanding_list' %}">Outstanding</a></li>
+<li class="breadcrumb-item active">{{ customer.customer_id }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Customer Info -->
+        <div class="card">
+            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ customer.name }}</strong>
+                    <span class="ms-2">({{ customer.customer_id }})</span>
+                </div>
+                <div>
+                    <h4 class="mb-0">Outstanding: {{ customer.outstanding_balance|floatformat:2 }}</h4>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Phone:</strong> {{ customer.phone }}</p>
+                        {% if customer.company_name %}
+                        <p class="mb-1"><strong>Company:</strong> {{ customer.company_name }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <p class="mb-1"><strong>Credit Limit:</strong> {{ customer.credit_limit|floatformat:2 }}</p>
+                        <p class="mb-1"><strong>Available:</strong> 
+                            <span class="text-success">{{ customer.get_available_credit|floatformat:2 }}</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Outstanding Invoices -->
+        <div class="card">
+            <div class="card-header">
+                <strong>Unpaid Invoices</strong>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Invoice No</th>
+                                <th>Date</th>
+                                <th>Total</th>
+                                <th>Paid</th>
+                                <th>Balance</th>
+                                <th>Days</th>
+                                <th>Aging</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for invoice in outstanding_invoices %}
+                            <tr>
+                                <td><strong>{{ invoice.invoice_number }}</strong></td>
+                                <td>{{ invoice.invoice_date|date:"d M Y" }}</td>
+                                <td>{{ invoice.grand_total|floatformat:2 }}</td>
+                                <td class="text-success">{{ invoice.paid_amount|floatformat:2 }}</td>
+                                <td class="text-danger fw-bold">{{ invoice.balance_due|floatformat:2 }}</td>
+                                <td><strong>{{ invoice.days_outstanding }}</strong></td>
+                                <td>
+                                    <span class="badge bg-{{ invoice.aging_class }}">{{ invoice.aging_category }}</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="#" class="btn btn-outline-primary" title="View Invoice">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="{% url 'apps:payment_entry_invoice' invoice.id %}" class="btn btn-outline-success" title="Make Payment">
+                                            <i class="bi bi-cash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    All invoices are paid!
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if outstanding_invoices %}
+                        <tfoot class="table-active">
+                            <tr>
+                                <td colspan="4" class="text-end"><strong>Total Outstanding:</strong></td>
+                                <td colspan="4">
+                                    <strong class="text-danger fs-5">{{ customer.outstanding_balance|floatformat:2 }}</strong>
+                                </td>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment History -->
+        <div class="card">
+            <div class="card-header">
+                <strong>Recent Payments</strong>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Payment ID</th>
+                                <th>Date</th>
+                                <th>Invoice</th>
+                                <th>Amount</th>
+                                <th>Method</th>
+                                <th>Reference</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in payments %}
+                            <tr>
+                                <td><strong>{{ payment.payment_id }}</strong></td>
+                                <td>{{ payment.payment_date|date:"d M Y" }}</td>
+                                <td>{{ payment.invoice.invoice_number }}</td>
+                                <td class="text-success fw-bold">{{ payment.amount|floatformat:2 }}</td>
+                                <td>{{ payment.get_payment_method_display }}</td>
+                                <td>{{ payment.reference_no|default:"-" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">No payments recorded yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <strong>Quick Actions</strong>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'apps:payment_entry' %}?customer={{ customer.id }}" class="btn btn-success btn-lg">
+                        <i class="bi bi-cash"></i> Record Payment
+                    </a>
+                    <a href="{% url 'apps:customer_ledger_detail' customer.id %}" class="btn btn-info">
+                        <i class="bi bi-journal-text"></i> View Full Ledger
+                    </a>
+                    <a href="{% url 'apps:customer_detail' customer.id %}" class="btn btn-primary">
+                        <i class="bi bi-person"></i> Customer Profile
+                    </a>
+                    <a href="{% url 'apps:new_bill' %}?customer={{ customer.id %}" class="btn btn-secondary">
+                        <i class="bi bi-plus-circle"></i> New Invoice
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aging Breakdown -->
+        <div class="card">
+            <div class="card-header">
+                <strong>Aging Breakdown</strong>
+            </div>
+            <div class="card-body">
+                {% for invoice in outstanding_invoices %}
+                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                    <div>
+                        <small>{{ invoice.invoice_number }}</small><br>
+                        <span class="badge bg-{{ invoice.aging_class }} badge-sm">{{ invoice.aging_category }}</span>
+                    </div>
+                    <strong class="text-danger">{{ invoice.balance_due|floatformat:2 }}</strong>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Alert / Warnings -->
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <i class="bi bi-exclamation-triangle"></i> <strong>Payment Reminder</strong>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>Outstanding Amount:</strong></p>
+                <h3 class="text-danger mb-3">{{ customer.outstanding_balance|floatformat:2 }}</h3>
+                
+                <p class="mb-2"><strong>Action Required:</strong></p>
+                <ul class="mb-0">
+                    <li>Contact customer for payment</li>
+                    <li>Check payment method preference</li>
+                    <li>Update payment schedule if needed</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="card">
+            <div class="card-header">
+                <strong>Collection Notes</strong>
+            </div>
+            <div class="card-body">
+                <textarea class="form-control" rows="4" placeholder="Add notes about collection efforts, promises to pay, etc."></textarea>
+                <button class="btn btn-sm btn-primary mt-2 w-100">Save Note</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}  

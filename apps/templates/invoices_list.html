@@ -1,0 +1,333 @@
+<!-- templates/apps/invoices_list.html -->
+{% extends 'base.html' %}
+
+{% block title %}Invoices - Perfume Billing System{% endblock %}
+
+{% block page_title %}Invoices{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'apps:dashboard' %}">Home</a></li>
+<li class="breadcrumb-item active">Invoices</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .filter-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: end;
+    }
+    
+    .filter-item {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .stat-box {
+        background: white;
+        padding: 1.25rem;
+        border-radius: 8px;
+        border-left: 4px solid #4f46e5;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+    
+    .invoice-row {
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .invoice-row:hover {
+        background: #f8fafc;
+        transform: translateX(4px);
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Action Bar -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0">All Invoices</h4>
+        <small class="text-muted">Total: {{ total_count }} invoices</small>
+    </div>
+    <a href="{% url 'apps:new_bill' %}" class="btn btn-primary btn-icon">
+        <i class="bi bi-plus-circle"></i> New Bill
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="filter-card">
+    <form method="get" id="filterForm">
+        <div class="filter-row">
+            <div class="filter-item">
+                <label class="form-label">Search</label>
+                <input type="text" name="search" class="form-control" 
+                       placeholder="Invoice #, Customer, Phone..." 
+                       value="{{ request.GET.search }}">
+            </div>
+            
+            <div class="filter-item">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="CONFIRMED" {% if request.GET.status == 'CONFIRMED' %}selected{% endif %}>Confirmed</option>
+                    <option value="DRAFT" {% if request.GET.status == 'DRAFT' %}selected{% endif %}>Draft</option>
+                    <option value="CANCELLED" {% if request.GET.status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            
+            <div class="filter-item">
+                <label class="form-label">Payment Terms</label>
+                <select name="payment_terms" class="form-select">
+                    <option value="">All Types</option>
+                    <option value="CASH" {% if request.GET.payment_terms == 'CASH' %}selected{% endif %}>Cash</option>
+                    <option value="CREDIT" {% if request.GET.payment_terms == 'CREDIT' %}selected{% endif %}>Credit</option>
+                    <option value="PARTIAL" {% if request.GET.payment_terms == 'PARTIAL' %}selected{% endif %}>Partial</option>
+                </select>
+            </div>
+            
+            <div class="filter-item">
+                <label class="form-label">Customer</label>
+                <select name="customer" class="form-select">
+                    <option value="">All Customers</option>
+                    {% for customer in customers %}
+                    <option value="{{ customer.id }}" {% if request.GET.customer == customer.id|stringformat:"s" %}selected{% endif %}>
+                        {{ customer.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-item">
+                <label class="form-label">From Date</label>
+                <input type="date" name="date_from" class="form-control" 
+                       value="{{ request.GET.date_from }}">
+            </div>
+            
+            <div class="filter-item">
+                <label class="form-label">To Date</label>
+                <input type="date" name="date_to" class="form-control" 
+                       value="{{ request.GET.date_to }}">
+            </div>
+            
+            <div class="filter-item" style="flex: 0;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Filter
+                </button>
+                <a href="{% url 'apps:invoices_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Clear
+                </a>
+            </div>
+        </div>
+        
+        <div class="mt-2">
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" name="outstanding" 
+                       id="outstandingOnly" value="1" {% if request.GET.outstanding %}checked{% endif %}>
+                <label class="form-check-label" for="outstandingOnly">
+                    Outstanding Only
+                </label>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Invoices Table -->
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Items</th>
+                        <th class="text-end">Amount</th>
+                        <th class="text-end">Paid</th>
+                        <th class="text-end">Balance</th>
+                        <th>Payment</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                    <tr class="invoice-row" onclick="window.location='{% url 'apps:invoice_detail' invoice.id %}'">
+                        <td>
+                            <strong class="text-primary">{{ invoice.invoice_number }}</strong>
+                        </td>
+                        <td>
+                            <div>{{ invoice.invoice_date|date:"d M, Y" }}</div>
+                            <small class="text-muted">{{ invoice.invoice_date|time:"h:i A" }}</small>
+                        </td>
+                        <td>
+                            <div class="fw-medium">{{ invoice.customer.name }}</div>
+                            <small class="text-muted">{{ invoice.customer.phone }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark">{{ invoice.items.count }} items</span>
+                        </td>
+                        <td class="text-end">
+                            <strong>₹{{ invoice.grand_total|floatformat:2 }}</strong>
+                        </td>
+                        <td class="text-end text-success">
+                            ₹{{ invoice.paid_amount|floatformat:2 }}
+                        </td>
+                        <td class="text-end">
+                            {% if invoice.balance_due > 0 %}
+                                <span class="text-danger fw-medium">₹{{ invoice.balance_due|floatformat:2 }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if invoice.payment_terms == 'CASH' %}
+                                <span class="badge bg-success">Cash</span>
+                            {% elif invoice.payment_terms == 'CREDIT' %}
+                                <span class="badge bg-warning">Credit</span>
+                            {% else %}
+                                <span class="badge bg-info">Partial</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if invoice.status == 'CONFIRMED' %}
+                                <span class="badge bg-success">Confirmed</span>
+                            {% elif invoice.status == 'CANCELLED' %}
+                                <span class="badge bg-danger">Cancelled</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Draft</span>
+                            {% endif %}
+                        </td>
+                        <td onclick="event.stopPropagation()">
+                            <div class="action-buttons">
+                                <a href="{% url 'apps:invoice_detail' invoice.id %}" 
+                                   class="btn btn-sm btn-outline-primary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'apps:invoice_print' invoice.id %}" 
+                                   class="btn btn-sm btn-outline-secondary" 
+                                   target="_blank" title="Print">
+                                    <i class="bi bi-printer"></i>
+                                </a>
+                                {% if invoice.status == 'CONFIRMED' %}
+                                <button class="btn btn-sm btn-outline-danger" 
+                                        onclick="cancelInvoice({{ invoice.id }})" title="Cancel">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
+                            <h6>No invoices found</h6>
+                            <small>Try adjusting your filters or create a new invoice</small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Pagination -->
+    {% if total_count > 50 %}
+    <div class="card-footer">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                Showing {{ invoices|length }} of {{ total_count }} invoices
+            </div>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page|add:"-1" }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    <li class="page-item active">
+                        <span class="page-link">{{ page }}</span>
+                    </li>
+                    
+                    {% if has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page|add:"1" }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function cancelInvoice(invoiceId) {
+    if (!confirm('Are you sure you want to cancel this invoice? This will restore the stock.')) {
+        return;
+    }
+    
+    fetch(`/invoices/${invoiceId}/cancel/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Invoice cancelled successfully');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error cancelling invoice');
+    });
+}
+</script>
+{% endblock %}

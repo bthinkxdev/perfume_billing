@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+
+{% block title %}Outstanding - Perfume Billing System{% endblock %}
+
+{% block page_title %}Outstanding Payments{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'apps:dashboard' %}">Home</a></li>
+<li class="breadcrumb-item active">Outstanding</li>
+{% endblock %}
+
+{% block content %}
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1" style="font-size: 0.875rem;">Total Outstanding</p>
+                        <h3 class="mb-0 fw-bold text-danger">{{ summary.total_outstanding|floatformat:2 }}</h3>
+                    </div>
+                    <div class="bg-danger bg-opacity-10 p-3 rounded">
+                        <i class="bi bi-exclamation-circle text-danger" style="font-size: 1.5rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1" style="font-size: 0.875rem;">Customers</p>
+                        <h3 class="mb-0 fw-bold">{{ summary.total_customers|default:0 }}</h3>
+                    </div>
+                    <div class="bg-primary bg-opacity-10 p-3 rounded">
+                        <i class="bi bi-people text-primary" style="font-size: 1.5rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Aging Summary -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <strong>Aging Analysis</strong>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center p-3 border rounded">
+                            <div class="text-muted mb-1">0-30 Days</div>
+                            <h4 class="mb-0 text-success">{{ aging_summary.range_0_30|floatformat:2 }}</h4>
+                            <small class="text-muted">Current</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center p-3 border rounded">
+                            <div class="text-muted mb-1">31-60 Days</div>
+                            <h4 class="mb-0 text-warning">{{ aging_summary.range_31_60|floatformat:2 }}</h4>
+                            <small class="text-muted">Attention Needed</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center p-3 border rounded">
+                            <div class="text-muted mb-1">61-90 Days</div>
+                            <h4 class="mb-0 text-danger">{{ aging_summary.range_61_90|floatformat:2 }}</h4>
+                            <small class="text-muted">Overdue</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center p-3 border rounded">
+                            <div class="text-muted mb-1">90+ Days</div>
+                            <h4 class="mb-0 text-dark">{{ aging_summary.range_90_plus|floatformat:2 }}</h4>
+                            <small class="text-muted">Critical</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Outstanding Table -->
+<div class="card">
+    <div class="card-header">
+        <strong>Outstanding Customers</strong>
+    </div>
+    <div class="card-body">
+        <!-- Filters -->
+        <form method="get" class="mb-4">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <input type="text" name="search" class="form-control" placeholder="Search Customer ID, Name, Phone..." value="{{ search }}">
+                </div>
+                <div class="col-md-2">
+                    <select name="aging" class="form-select">
+                        <option value="">All Aging</option>
+                        <option value="0-30" {% if request.GET.aging == '0-30' %}selected{% endif %}>0-30 Days</option>
+                        <option value="31-60" {% if request.GET.aging == '31-60' %}selected{% endif %}>31-60 Days</option>
+                        <option value="61-90" {% if request.GET.aging == '61-90' %}selected{% endif %}>61-90 Days</option>
+                        <option value="90+" {% if request.GET.aging == '90+' %}selected{% endif %}>90+ Days</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="sort" class="form-select">
+                        <option value="-outstanding_balance">Highest First</option>
+                        <option value="outstanding_balance" {% if request.GET.sort == 'outstanding_balance' %}selected{% endif %}>Lowest First</option>
+                        <option value="oldest_invoice_date" {% if request.GET.sort == 'oldest_invoice_date' %}selected{% endif %}>Oldest First</option>
+                        <option value="name" {% if request.GET.sort == 'name' %}selected{% endif %}>Name A-Z</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{% url 'apps:outstanding_list' %}" class="btn btn-secondary w-100">
+                        <i class="bi bi-x"></i> Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+
+        <!-- Outstanding Table -->
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Customer ID</th>
+                        <th>Customer Name</th>
+                        <th>Phone</th>
+                        <th>Outstanding</th>
+                        <th>Credit Limit</th>
+                        <th>Unpaid Invoices</th>
+                        <th>Oldest Invoice</th>
+                        <th>Days</th>
+                        <th>Aging</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in page_obj %}
+                    <tr>
+                        <td><strong>{{ customer.customer_id }}</strong></td>
+                        <td>
+                            <div><strong>{{ customer.name }}</strong></div>
+                            {% if customer.company_name %}
+                            <small class="text-muted">{{ customer.company_name }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ customer.phone }}</td>
+                        <td>
+                            <span class="text-danger fw-bold fs-6">{{ customer.outstanding_balance|floatformat:2 }}</span>
+                        </td>
+                        <td>{{ customer.credit_limit|floatformat:2 }}</td>
+                        <td>{{ customer.total_invoices }}</td>
+                        <td>
+                            {% if customer.oldest_invoice_date %}
+                            {{ customer.oldest_invoice_date|date:"d M Y" }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ customer.days_outstanding }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ customer.aging_class }}">{{ customer.aging_category }}</span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'apps:outstanding_detail' customer.id %}" class="btn btn-outline-danger" title="Details">
+                                    <i class="bi bi-file-text"></i>
+                                </a>
+                                <a href="{% url 'apps:customer_detail' customer.id %}" class="btn btn-outline-primary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'apps:payment_entry' %}?customer={{ customer.id }}" class="btn btn-outline-success" title="Pay">
+                                    <i class="bi bi-cash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-4">
+                            <i class="bi bi-check-circle" style="font-size: 3rem; color: #10b981;"></i>
+                            <p class="text-muted mt-2">No outstanding payments! 🎉</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}">First</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}">Previous</a>
+                </li>
+                {% endif %}
+                
+                <li class="page-item disabled">
+                    <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}">Next</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}">Last</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Legend -->
+<div class="card">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <span class="badge bg-success me-2">0-30</span> <small>Current - Payment due within 30 days</small>
+            </div>
+            <div class="col-md-3">
+                <span class="badge bg-warning me-2">31-60</span> <small>Attention - Follow up recommended</small>
+            </div>
+            <div class="col-md-3">
+                <span class="badge bg-danger me-2">61-90</span> <small>Overdue - Immediate action needed</small>
+            </div>
+            <div class="col-md-3">
+                <span class="badge bg-dark me-2">90+</span> <small>Critical - Urgent collection required</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

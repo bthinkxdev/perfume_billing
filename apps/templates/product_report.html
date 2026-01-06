@@ -1,0 +1,281 @@
+{% extends 'base.html' %}
+
+{% block title %}Product Report - Perfume Billing System{% endblock %}
+
+{% block page_title %}Product Performance Report{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'apps:dashboard' %}">Home</a></li>
+<li class="breadcrumb-item">Reports</li>
+<li class="breadcrumb-item active">Product Report</li>
+{% endblock %}
+
+{% block content %}
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted mb-1">Total Products</p>
+                        <h4 class="mb-0">{{ summary.total_products|default:0 }}</h4>
+                    </div>
+                    <div class="text-primary fs-1">
+                        <i class="bi bi-box-seam"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted mb-1">Stock Value</p>
+                        <h4 class="mb-0">{{ summary.total_stock_value|floatformat:2|default:"0.00" }}</h4>
+                    </div>
+                    <div class="text-success fs-1">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted mb-1">Low Stock Items</p>
+                        <h4 class="mb-0 text-warning">{{ summary.low_stock_count|default:0 }}</h4>
+                    </div>
+                    <div class="text-warning fs-1">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted mb-1">Out of Stock</p>
+                        <h4 class="mb-0 text-danger">{{ summary.out_of_stock_count|default:0 }}</h4>
+                    </div>
+                    <div class="text-danger fs-1">
+                        <i class="bi bi-x-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-header">
+        <strong><i class="bi bi-funnel"></i> Filters</strong>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Search Product</label>
+                <input type="text" name="search" class="form-control" 
+                       placeholder="SKU, Barcode, Name..." value="{{ search }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Brand</label>
+                <select name="brand" class="form-select">
+                    <option value="">All Brands</option>
+                    {% for b in brands %}
+                    <option value="{{ b.id }}" {% if brand == b.id|stringformat:"s" %}selected{% endif %}>
+                        {{ b.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Stock Status</label>
+                <select name="stock_status" class="form-select">
+                    <option value="">All</option>
+                    <option value="available" {% if stock_status == 'available' %}selected{% endif %}>Available</option>
+                    <option value="low" {% if stock_status == 'low' %}selected{% endif %}>Low Stock</option>
+                    <option value="out" {% if stock_status == 'out' %}selected{% endif %}>Out of Stock</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">From Date</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">To Date</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Top Performers -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <strong><i class="bi bi-trophy"></i> Top Selling Products</strong>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Product</th>
+                                <th>Qty Sold</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in top_selling %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <small><strong>{{ product.description|truncatewords:5 }}</strong></small>
+                                </td>
+                                <td><strong>{{ product.total_sold|floatformat:0 }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <strong><i class="bi bi-graph-up"></i> Top Revenue Products</strong>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Product</th>
+                                <th>Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in top_revenue %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <small><strong>{{ product.description|truncatewords:5 }}</strong></small>
+                                </td>
+                                <td><strong>{{ product.total_revenue|floatformat:2 }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Product List -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>Product Performance Details</strong>
+        <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-printer"></i> Print
+        </button>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Brand</th>
+                        <th>Current Stock</th>
+                        <th>Stock Value</th>
+                        <th>Total Sold</th>
+                        <th>Revenue</th>
+                        <th>Invoices</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>
+                            <strong>{{ product.description|truncatewords:8 }}</strong><br>
+                            <small class="text-muted">SKU: {{ product.sku }}</small>
+                        </td>
+                        <td>{{ product.brand.name }}</td>
+                        <td>
+                            <strong>{{ product.stock_qty|floatformat:0 }}</strong>
+                            {% if product.is_low_stock %}
+                            <i class="bi bi-exclamation-circle text-warning" title="Low stock"></i>
+                            {% endif %}
+                        </td>
+                        <td>{{ product.stock_value|floatformat:2 }}</td>
+                        <td><strong>{{ product.total_sold|floatformat:0 }}</strong></td>
+                        <td><strong class="text-success">{{ product.total_revenue|floatformat:2 }}</strong></td>
+                        <td>{{ product.invoice_count }}</td>
+                        <td>
+                            {% if product.stock_qty == 0 %}
+                            <span class="badge bg-danger">Out of Stock</span>
+                            {% elif product.is_low_stock %}
+                            <span class="badge bg-warning">Low Stock</span>
+                            {% else %}
+                            <span class="badge bg-success">Available</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            No products found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+@media print {
+    .sidebar, .topbar, .btn, .card-header button, .breadcrumb { display: none !important; }
+    .main-content { margin-left: 0 !important; }
+    .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Custom template filter for multiplication
+document.querySelectorAll('td').forEach(cell => {
+    const text = cell.textContent.trim();
+    if (text.includes('|mul:')) {
+        // Handle multiplication in template
+        const parts = text.split('|');
+        // This is just for display, actual calculation done in backend
+    }
+});
+</script>
+{% endblock %}

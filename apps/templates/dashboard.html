@@ -1,0 +1,329 @@
+<!-- templates/apps/dashboard.html -->
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Perfume Billing System{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Dashboard</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        border-radius: 12px;
+        padding: 1.5rem;
+        background: white;
+        border: none;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+    
+    .stat-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        color: #1e293b;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: #64748b;
+        font-weight: 500;
+    }
+    
+    .stat-change {
+        font-size: 0.75rem;
+        margin-top: 0.5rem;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(79, 70, 229, 0.1); color: #4f46e5;">
+                <i class="bi bi-currency-dollar"></i>
+            </div>
+            <div class="stat-value">₹{{ today_sales|floatformat:0 }}</div>
+            <div class="stat-label">Today's Sales</div>
+            <div class="stat-change text-muted">
+                <i class="bi bi-receipt"></i> {{ today_count }} invoices
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                <i class="bi bi-graph-up"></i>
+            </div>
+            <div class="stat-value">₹{{ month_sales|floatformat:0 }}</div>
+            <div class="stat-label">This Month</div>
+            <div class="stat-change text-muted">
+                <i class="bi bi-receipt"></i> {{ month_count }} invoices
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="stat-value">₹{{ outstanding|floatformat:0 }}</div>
+            <div class="stat-label">Outstanding</div>
+            <div class="stat-change text-warning">
+                <i class="bi bi-exclamation-circle"></i> Pending payments
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                <i class="bi bi-box-seam"></i>
+            </div>
+            <div class="stat-value">{{ low_stock }}</div>
+            <div class="stat-label">Low Stock Items</div>
+            <div class="stat-change text-danger">
+                <i class="bi bi-exclamation-triangle"></i> Reorder needed
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body p-3">
+                <div class="d-flex gap-2">
+                    <a href="{% url 'apps:new_bill' %}" class="btn btn-primary btn-icon">
+                        <i class="bi bi-plus-circle"></i> New Bill
+                    </a>
+                    <a href="{% url 'apps:invoices_list' %}" class="btn btn-outline-primary btn-icon">
+                        <i class="bi bi-receipt"></i> View Invoices
+                    </a>
+                    <a href="#" class="btn btn-outline-secondary btn-icon">
+                        <i class="bi bi-people"></i> Customers
+                    </a>
+                    <a href="#" class="btn btn-outline-secondary btn-icon">
+                        <i class="bi bi-box-seam"></i> Products
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Sales Chart -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-graph-up me-2"></i>Sales Trend (Last 7 Days)</span>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary active">7D</button>
+                    <button type="button" class="btn btn-outline-secondary">1M</button>
+                    <button type="button" class="btn btn-outline-secondary">3M</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top Products -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-award me-2"></i>Top Selling Products
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for product in top_products|slice:":5" %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="fw-medium text-dark">{{ product.product__description|truncatechars:30 }}</div>
+                                <small class="text-muted">{{ product.product__sku }}</small>
+                            </div>
+                            <div class="text-end ms-2">
+                                <div class="fw-bold text-primary">₹{{ product.total_amount|floatformat:0 }}</div>
+                                <small class="text-muted">{{ product.total_qty }} units</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="list-group-item text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                        No sales data yet
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Invoices -->
+<div class="row g-3 mt-2">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-receipt me-2"></i>Recent Invoices</span>
+                <a href="{% url 'apps:invoices_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Invoice #</th>
+                                <th>Date</th>
+                                <th>Customer</th>
+                                <th>Amount</th>
+                                <th>Payment</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for invoice in recent_invoices %}
+                            <tr>
+                                <td><strong>{{ invoice.invoice_number }}</strong></td>
+                                <td>{{ invoice.invoice_date|date:"d M, Y" }}</td>
+                                <td>
+                                    <div>{{ invoice.customer.name }}</div>
+                                    <small class="text-muted">{{ invoice.customer.phone }}</small>
+                                </td>
+                                <td><strong>₹{{ invoice.grand_total|floatformat:2 }}</strong></td>
+                                <td>
+                                    {% if invoice.payment_terms == 'CASH' %}
+                                        <span class="badge bg-success">Cash</span>
+                                    {% elif invoice.payment_terms == 'CREDIT' %}
+                                        <span class="badge bg-warning">Credit</span>
+                                    {% else %}
+                                        <span class="badge bg-info">Partial</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if invoice.status == 'CONFIRMED' %}
+                                        <span class="badge bg-success">Confirmed</span>
+                                    {% elif invoice.status == 'CANCELLED' %}
+                                        <span class="badge bg-danger">Cancelled</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Draft</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'apps:invoice_detail' invoice.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{% url 'apps:invoice_print' invoice.id %}" class="btn btn-sm btn-outline-secondary" target="_blank">
+                                        <i class="bi bi-printer"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                                    No invoices found
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Sales Chart
+    const salesData = {{ sales_chart|safe }};
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: salesData.map(d => d.date),
+            datasets: [{
+                label: 'Sales',
+                data: salesData.map(d => d.amount),
+                borderColor: '#4f46e5',
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '₹' + context.parsed.y.toFixed(2);
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '₹' + value.toLocaleString();
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if is_edit %}Edit{% else %}Add{% endif %} Customer - Perfume Billing System{% endblock %}
+
+{% block page_title %}{% if is_edit %}Edit{% else %}Add New{% endif %} Customer{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'apps:dashboard' %}">Home</a></li>
+<li class="breadcrumb-item"><a href="{% url 'apps:customers_list' %}">Customers</a></li>
+<li class="breadcrumb-item active">{% if is_edit %}Edit{% else %}Add{% endif %}</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="card">
+                <div class="card-header">
+                    <strong>Basic Information</strong>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <!-- Customer Type -->
+                        <div class="col-md-6">
+                            <label class="form-label">Customer Type <span class="text-danger">*</span></label>
+                            <select name="customer_type" class="form-select" required onchange="toggleCreditLimit()">
+                                {% for key, value in customer_types %}
+                                <option value="{{ key }}" {% if customer and customer.customer_type == key %}selected{% endif %}>
+                                    {{ value }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Wholesale customers can take credit</small>
+                        </div>
+
+                        <!-- Customer Name -->
+                        <div class="col-md-6">
+                            <label class="form-label">Customer Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" required 
+                                   value="{% if customer %}{{ customer.name }}{% endif %}"
+                                   placeholder="Full Name">
+                        </div>
+
+                        <!-- Company Name -->
+                        <div class="col-md-12">
+                            <label class="form-label">Company Name</label>
+                            <input type="text" name="company_name" class="form-control" 
+                                   value="{% if customer %}{{ customer.company_name }}{% endif %}"
+                                   placeholder="Optional - Business Name">
+                        </div>
+
+                        <!-- Phone -->
+                        <div class="col-md-6">
+                            <label class="form-label">Phone Number <span class="text-danger">*</span></label>
+                            <input type="tel" name="phone" class="form-control" required 
+                                   value="{% if customer %}{{ customer.phone }}{% endif %}"
+                                   placeholder="Mobile Number">
+                        </div>
+
+                        <!-- Email -->
+                        <div class="col-md-6">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" name="email" class="form-control" 
+                                   value="{% if customer %}{{ customer.email }}{% endif %}"
+                                   placeholder="email@example.com">
+                        </div>
+
+                        <!-- Address -->
+                        <div class="col-md-12">
+                            <label class="form-label">Address</label>
+                            <textarea name="address" class="form-control" rows="3" 
+                                      placeholder="Full Address">{% if customer %}{{ customer.address }}{% endif %}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <strong>Credit Management</strong>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Credit Limit</label>
+                            <input type="number" name="credit_limit" id="creditLimit" class="form-control" 
+                                   step="0.01" min="0"
+                                   value="{% if customer %}{{ customer.credit_limit }}{% else %}0{% endif %}"
+                                   placeholder="0.00">
+                            <small class="text-muted">Maximum credit allowed for this customer</small>
+                        </div>
+
+                        {% if is_edit %}
+                        <div class="col-md-6">
+                            <label class="form-label">Current Outstanding</label>
+                            <input type="text" class="form-control" readonly 
+                                   value="{{ customer.outstanding_balance|floatformat:2 }}">
+                            <small class="text-muted">Cannot be edited directly</small>
+                        </div>
+
+                        <div class="col-md-12">
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle"></i>
+                                <strong>Available Credit:</strong> 
+                                {{ customer.get_available_credit|floatformat:2 }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if is_edit %}
+            <div class="card">
+                <div class="card-header">
+                    <strong>Status</strong>
+                </div>
+                <div class="card-body">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="isActive" 
+                               {% if customer.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="isActive">
+                            Customer is Active
+                        </label>
+                    </div>
+                    <small class="text-muted">Inactive customers cannot be used in new transactions</small>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="d-flex gap-2 justify-content-end">
+                <a href="{% url 'apps:customers_list' %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary btn-icon">
+                    <i class="bi bi-save"></i> {% if is_edit %}Update{% else %}Save{% endif %} Customer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleCreditLimit() {
+    const customerType = document.querySelector('select[name="customer_type"]').value;
+    const creditLimit = document.getElementById('creditLimit');
+    
+    if (customerType === 'RETAIL') {
+        creditLimit.value = '0.00';
+        creditLimit.readOnly = true;
+        creditLimit.parentElement.querySelector('.text-muted').textContent = 'Retail customers cannot take credit';
+    } else {
+        creditLimit.readOnly = false;
+        creditLimit.parentElement.querySelector('.text-muted').textContent = 'Maximum credit allowed for this customer';
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleCreditLimit();
+});
+</script>
+{% endblock %}

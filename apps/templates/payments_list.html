@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}Payments - Perfume Billing System{% endblock %}
+
+{% block page_title %}All Payments{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'apps:dashboard' %}">Home</a></li>
+<li class="breadcrumb-item active">Payments</li>
+{% endblock %}
+
+{% block content %}
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted mb-1">Total Payments</p>
+                        <h4 class="mb-0">{{ payments.count }}</h4>
+                    </div>
+                    <div class="text-primary fs-1">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted mb-1">Total Amount</p>
+                        <h4 class="mb-0">{{ total_amount|floatformat:2 }}</h4>
+                    </div>
+                    <div class="text-success fs-1">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Card -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong><i class="bi bi-funnel"></i> Filters</strong>
+        <a href="{% url 'apps:payment_entry' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle"></i> New Payment
+        </a>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Search</label>
+                <input type="text" name="search" class="form-control" 
+                       placeholder="Payment ID, Customer..." value="{{ search }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Payment Method</label>
+                <select name="payment_method" class="form-select">
+                    <option value="">All Methods</option>
+                    {% for key, value in payment_methods %}
+                    <option value="{{ key }}" {% if payment_method == key %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">From Date</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">To Date</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            <div class="col-md-3 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Filter
+                </button>
+                <a href="{% url 'apps:payments_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Payments Table -->
+<div class="card">
+    <div class="card-header">
+        <strong>Payment Records</strong>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Payment ID</th>
+                        <th>Date</th>
+                        <th>Invoice</th>
+                        <th>Customer</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Reference</th>
+                        <th>By</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td><strong>{{ payment.payment_id }}</strong></td>
+                        <td>{{ payment.payment_date|date:"d M Y, h:i A" }}</td>
+                        <td>
+                            <a href="{% url 'apps:invoice_detail' payment.invoice.id %}">
+                                {{ payment.invoice.invoice_number }}
+                            </a>
+                        </td>
+                        <td>
+                            <a href="{% url 'apps:customer_detail' payment.customer.id %}">
+                                {{ payment.customer.name }}
+                            </a>
+                            <br>
+                            <small class="text-muted">{{ payment.customer.customer_id }}</small>
+                        </td>
+                        <td><strong class="text-success">{{ payment.amount|floatformat:2 }}</strong></td>
+                        <td>
+                            <span class="badge bg-info">
+                                {{ payment.get_payment_method_display }}
+                            </span>
+                        </td>
+                        <td>{{ payment.reference_no|default:"-" }}</td>
+                        <td>{{ payment.created_by.get_full_name|default:payment.created_by.username }}</td>
+                        <td>
+                            <a href="{% url 'apps:payment_detail' payment.id %}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            No payments found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

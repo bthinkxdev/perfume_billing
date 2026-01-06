@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+
+{% block title %}Sales Report - Perfume Billing System{% endblock %}
+
+{% block page_title %}Sales Report{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'apps:dashboard' %}">Home</a></li>
+<li class="breadcrumb-item">Reports</li>
+<li class="breadcrumb-item active">Sales Report</li>
+{% endblock %}
+
+{% block content %}
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted mb-1">Total Invoices</p>
+                        <h4 class="mb-0">{{ summary.total_invoices|default:0 }}</h4>
+                    </div>
+                    <div class="text-primary fs-1">
+                        <i class="bi bi-receipt"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted mb-1">Total Sales</p>
+                        <h4 class="mb-0">{{ summary.total_sales|floatformat:2|default:"0.00" }}</h4>
+                    </div>
+                    <div class="text-success fs-1">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted mb-1">Total Collected</p>
+                        <h4 class="mb-0 text-info">{{ summary.total_paid|floatformat:2|default:"0.00" }}</h4>
+                    </div>
+                    <div class="text-info fs-1">
+                        <i class="bi bi-cash-coin"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted mb-1">Avg Invoice</p>
+                        <h4 class="mb-0">{{ summary.avg_invoice_value|floatformat:2|default:"0.00" }}</h4>
+                    </div>
+                    <div class="text-warning fs-1">
+                        <i class="bi bi-calculator"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter & Report Type Selection -->
+<div class="card mb-4">
+    <div class="card-header">
+        <strong><i class="bi bi-sliders"></i> Report Configuration</strong>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-2">
+                <label class="form-label">Report Type</label>
+                <select name="report_type" class="form-select">
+                    <option value="daily" {% if report_type == 'daily' %}selected{% endif %}>Daily</option>
+                    <option value="monthly" {% if report_type == 'monthly' %}selected{% endif %}>Monthly</option>
+                    <option value="customer" {% if report_type == 'customer' %}selected{% endif %}>By Customer</option>
+                    <option value="product" {% if report_type == 'product' %}selected{% endif %}>By Product</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">From Date</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}" required>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">To Date</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}" required>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Customer Type</label>
+                <select name="customer_type" class="form-select">
+                    <option value="">All Types</option>
+                    {% for key, value in customer_types %}
+                    <option value="{{ key }}" {% if customer_type == key %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-bar-chart"></i> Generate Report
+                </button>
+                <button type="button" onclick="window.print()" class="btn btn-outline-secondary">
+                    <i class="bi bi-printer"></i> Print
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Payment Method Breakdown -->
+{% if payment_summary %}
+<div class="card mb-4">
+    <div class="card-header">
+        <strong><i class="bi bi-credit-card"></i> Payment Method Breakdown</strong>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for method in payment_summary %}
+            <div class="col-md-3 mb-3">
+                <div class="border rounded p-3">
+                    <p class="text-muted mb-1">{{ method.get_payment_method_display }}</p>
+                    <h5 class="mb-0">{{ method.total|floatformat:2 }}</h5>
+                    <small class="text-muted">{{ method.count }} transaction(s)</small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Report Data -->
+<div class="card">
+    <div class="card-header">
+        <strong>
+            {% if report_type == 'daily' %}
+            Daily Sales Report
+            {% elif report_type == 'monthly' %}
+            Monthly Sales Report
+            {% elif report_type == 'customer' %}
+            Customer-wise Sales Report
+            {% elif report_type == 'product' %}
+            Product-wise Sales Report
+            {% endif %}
+        </strong>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        {% if report_type == 'daily' %}
+                        <th>Date</th>
+                        <th>Invoices</th>
+                        <th>Total Sales</th>
+                        <th>Total Collected</th>
+                        {% elif report_type == 'monthly' %}
+                        <th>Month</th>
+                        <th>Invoices</th>
+                        <th>Total Sales</th>
+                        <th>Total Collected</th>
+                        {% elif report_type == 'customer' %}
+                        <th>Customer</th>
+                        <th>Type</th>
+                        <th>Invoices</th>
+                        <th>Total Sales</th>
+                        <th>Total Paid</th>
+                        <th>Outstanding</th>
+                        {% elif report_type == 'product' %}
+                        <th>Product</th>
+                        <th>Brand</th>
+                        <th>Quantity Sold</th>
+                        <th>Total Revenue</th>
+                        <th>Invoices</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in report_data %}
+                    <tr>
+                        {% if report_type == 'daily' %}
+                        <td>{{ row.date|date:"d M Y" }}</td>
+                        <td>{{ row.invoice_count }}</td>
+                        <td><strong>{{ row.total_sales|floatformat:2 }}</strong></td>
+                        <td class="text-success"><strong>{{ row.total_paid|floatformat:2 }}</strong></td>
+                        
+                        {% elif report_type == 'monthly' %}
+                        <td>{{ row.month|date:"M Y" }}</td>
+                        <td>{{ row.invoice_count }}</td>
+                        <td><strong>{{ row.total_sales|floatformat:2 }}</strong></td>
+                        <td class="text-success"><strong>{{ row.total_paid|floatformat:2 }}</strong></td>
+                        
+                        {% elif report_type == 'customer' %}
+                        <td>
+                            <strong>{{ row.customer__name }}</strong><br>
+                            <small class="text-muted">{{ row.customer__customer_id }}</small>
+                        </td>
+                        <td>
+                            <span class="badge {% if row.customer__customer_type == 'WHOLESALE' %}bg-primary{% else %}bg-info{% endif %}">
+                                {{ row.customer__customer_type }}
+                            </span>
+                        </td>
+                        <td>{{ row.invoice_count }}</td>
+                        <td><strong>{{ row.total_sales|floatformat:2 }}</strong></td>
+                        <td class="text-success"><strong>{{ row.total_paid|floatformat:2 }}</strong></td>
+                        <td class="text-danger"><strong>{{ row.total_outstanding|floatformat:2 }}</strong></td>
+                        
+                        {% elif report_type == 'product' %}
+                        <td>
+                            <strong>{{ row.product__description }}</strong><br>
+                            <small class="text-muted">SKU: {{ row.product__sku }}</small>
+                        </td>
+                        <td>{{ row.product__brand__name }}</td>
+                        <td><strong>{{ row.total_qty|floatformat:0 }}</strong></td>
+                        <td><strong>{{ row.total_amount|floatformat:2 }}</strong></td>
+                        <td>{{ row.invoice_count }}</td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            No data found for selected criteria
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+@media print {
+    .sidebar, .topbar, .btn, .card-header button, .breadcrumb { display: none !important; }
+    .main-content { margin-left: 0 !important; }
+    .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+}
+</style>
+{% endblock %}
