@@ -108,6 +108,7 @@ def new_bill(request):
     context = {
         'company': company,
         'customers': customers,
+        'today': timezone.now().date().strftime('%Y-%m-%d'),
     }
     
     return render(request, 'new_bill.html', context)
@@ -258,21 +259,22 @@ def search_customer(request):
         return JsonResponse({'customers': []})
     
     customers = Customer.objects.filter(
-        Q(phone__icontains=query) | Q(name__icontains=query) | Q(customer_id=query),
+        Q(phone__icontains=query) | Q(name__icontains=query) | Q(customer_id__icontains=query),
         is_active=True
-    )[:10]
+    ).order_by('name')[:10]
     
     customer_list = [{
         'id': c.id,
         'customer_id': c.customer_id,
         'name': c.name,
+        'display_name': c.name or c.company_name or c.phone or c.customer_id,
         'company_name': c.company_name,
         'phone': c.phone,
         'customer_type': c.customer_type,
         'outstanding_balance': float(c.outstanding_balance),
         'credit_limit': float(c.credit_limit),
     } for c in customers]
-    
+    print("customer_list :",customer_list)
     return JsonResponse({'customers': customer_list})
 
 
@@ -299,6 +301,7 @@ def quick_add_customer(request):
                 'id': customer.id,
                 'customer_id': customer.customer_id,
                 'name': customer.name,
+                'display_name': customer.name or customer.phone or customer.customer_id,
                 'phone': customer.phone,
                 'customer_type': customer.customer_type
             }

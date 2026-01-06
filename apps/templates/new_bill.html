@@ -29,6 +29,7 @@
         background: white;
         border-radius: 8px;
         padding: 0.5rem;
+        position: relative;
     }
     
     .customer-search-box input {
@@ -187,6 +188,7 @@
         left: 0;
         right: 0;
         background: white;
+        color: #0f172a;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -194,6 +196,22 @@
         overflow-y: auto;
         z-index: 1000;
         display: none;
+    }
+    
+    .autocomplete-item {
+        color: #0f172a;
+    }
+    
+    .autocomplete-item strong {
+        color: #0f172a;
+    }
+
+    .invalid-feedback {
+        display: none;
+    }
+
+    .is-invalid {
+        border-color: #dc2626 !important;
     }
     
     .autocomplete-item {
@@ -388,14 +406,17 @@
                     <div class="mb-3">
                         <label class="form-label">Name *</label>
                         <input type="text" class="form-control" id="quickCustomerName" required>
+                        <div class="invalid-feedback" id="quickCustomerNameError"></div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Phone *</label>
                         <input type="text" class="form-control" id="quickCustomerPhone" required>
+                        <div class="invalid-feedback" id="quickCustomerPhoneError"></div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Company Name</label>
                         <input type="text" class="form-control" id="quickCustomerCompany">
+                        <div class="invalid-feedback" id="quickCustomerCompanyError"></div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Customer Type</label>
@@ -422,6 +443,11 @@
 let selectedCustomer = null;
 let items = [];
 let itemCounter = 0;
+let phoneExists = false;
+let phoneCheckTimeout;
+let scanBuffer = '';
+let scanStartTime = null;
+let scanLastTime = 0;
 
 // CSRF Token
 function getCookie(name) {
@@ -440,14 +466,105 @@ function getCookie(name) {
 }
 const csrftoken = getCookie('csrftoken');
 
+// Form validation helpers
+const phoneRegex = /^[0-9]{7,15}$/;
+
+function setFieldError(fieldId, message) {
+    const input = $(`#${fieldId}`);
+    const feedback = $(`#${fieldId}Error`);
+    if (message) {
+        input.addClass('is-invalid');
+        feedback.text(message).show();
+    } else {
+        input.removeClass('is-invalid');
+        feedback.text('').hide();
+    }
+}
+
+function validateQuickCustomerForm(showAlerts = true) {
+    let valid = true;
+    const name = $('#quickCustomerName').val().trim();
+    const phone = $('#quickCustomerPhone').val().trim();
+    const company = $('#quickCustomerCompany').val().trim();
+
+    if (!name) {
+        setFieldError('quickCustomerName', 'Name is required');
+        valid = false;
+    } else {
+        setFieldError('quickCustomerName', '');
+    }
+
+    if (!phone) {
+        setFieldError('quickCustomerPhone', 'Phone is required');
+        valid = false;
+    } else if (!phoneRegex.test(phone)) {
+        setFieldError('quickCustomerPhone', 'Enter a valid phone number (7-15 digits)');
+        valid = false;
+    } else if (phoneExists) {
+        setFieldError('quickCustomerPhone', 'Phone already exists');
+        valid = false;
+    } else {
+        setFieldError('quickCustomerPhone', '');
+    }
+
+    if (company.length > 255) {
+        setFieldError('quickCustomerCompany', 'Company name too long');
+        valid = false;
+    } else {
+        setFieldError('quickCustomerCompany', '');
+    }
+
+    if (!valid && showAlerts) {
+        alert('Please fix the highlighted fields');
+    }
+    return valid;
+}
+
+function handlePhoneInput() {
+    clearTimeout(phoneCheckTimeout);
+    const phone = $('#quickCustomerPhone').val().trim();
+
+    // Basic validation first
+    if (!phone) {
+        phoneExists = false;
+        setFieldError('quickCustomerPhone', 'Phone is required');
+        return;
+    }
+
+    if (!phoneRegex.test(phone)) {
+        phoneExists = false;
+        setFieldError('quickCustomerPhone', 'Enter a valid phone number (7-15 digits)');
+        return;
+    }
+
+    setFieldError('quickCustomerPhone', '');
+
+    // Debounced check for duplicates
+    phoneCheckTimeout = setTimeout(() => {
+        $.ajax({
+            url: '{% url "apps:search_customer" %}',
+            data: { q: phone },
+            success: function(data) {
+                const exactMatch = data.customers.some(c => c.phone === phone);
+                phoneExists = exactMatch;
+                if (exactMatch) {
+                    setFieldError('quickCustomerPhone', 'Phone already exists');
+                } else {
+                    setFieldError('quickCustomerPhone', '');
+                }
+            }
+        });
+    }, 300);
+}
+
 // Customer Search
 let customerSearchTimeout;
 $('#customerSearch').on('input', function() {
     clearTimeout(customerSearchTimeout);
     const query = $(this).val().trim();
     
-    if (query.length < 2) {
-        $('#customerResults').hide();
+    if (!query) {
+        $('#customerResults').hide().empty();
         return;
     }
     
@@ -464,39 +581,57 @@ $('#customerSearch').on('input', function() {
 
 function displayCustomerResults(customers) {
     const resultsDiv = $('#customerResults');
-    if (customers.length === 0) {
-        resultsDiv.hide();
-        return;
-    }
     
     let html = '';
-    customers.forEach(customer => {
-        html += `
-            <div class="autocomplete-item" onclick='selectCustomer(${JSON.stringify(customer)})'>
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <strong>${customer.name}</strong>
-                        <div class="small text-muted">${customer.phone} • ${customer.customer_id}</div>
-                    </div>
-                    <div class="text-end small">
-                        <div class="badge bg-${customer.customer_type === 'WHOLESALE' ? 'primary' : 'secondary'}">
-                            ${customer.customer_type}
+    if (customers.length === 0) {
+        html = `
+            <div class="autocomplete-item text-muted">
+                <div class="small">No customers found</div>
+            </div>
+        `;
+    } else {
+        customers.forEach(customer => {
+            const displayName = customer.display_name 
+                || customer.name 
+                || customer.company_name 
+                || customer.customer_id 
+                || customer.phone 
+                || 'Customer';
+            
+            const secondaryParts = [
+                customer.phone || null,
+                customer.customer_id || null,
+                customer.company_name || null
+            ].filter(Boolean);
+            const secondaryLine = secondaryParts.join(' • ') || 'No details';
+            html += `
+                <div class="autocomplete-item" onclick='selectCustomer(${JSON.stringify(customer)})'>
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <strong>${displayName}</strong>
+                            <div class="small text-muted">${secondaryLine}</div>
+                        </div>
+                        <div class="text-end small">
+                            <div class="badge bg-${customer.customer_type === 'WHOLESALE' ? 'primary' : 'secondary'}">
+                                ${customer.customer_type}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        `;
-    });
+            `;
+        });
+    }
     
     resultsDiv.html(html).show();
 }
 
 function selectCustomer(customer) {
     selectedCustomer = customer;
-    $('#customerSearch').val(customer.name);
+    const displayName = customer.name || customer.display_name || customer.customer_id || customer.phone || '';
+    $('#customerSearch').val(displayName);
     $('#customerResults').hide();
     
-    $('#selectedCustomerName').text(customer.name);
+    $('#selectedCustomerName').text(displayName);
     $('#selectedCustomerCompany').text(customer.company_name || customer.customer_id);
     $('#selectedCustomerBalance').text('₹' + customer.outstanding_balance.toFixed(2));
     $('#selectedCustomerCredit').text('₹' + customer.credit_limit.toFixed(2));
@@ -671,10 +806,29 @@ function saveBill(confirm) {
     
     const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
     const discount = parseFloat($('#discountAmount').val()) || 0;
+    if (discount < 0) {
+        alert('Discount cannot be negative');
+        return;
+    }
+    if (discount > subtotal) {
+        alert('Discount cannot exceed subtotal');
+        return;
+    }
     const grandTotal = subtotal - discount;
     const paymentTerms = $('#paymentTerms').val();
     const paidAmount = paymentTerms === 'CASH' ? grandTotal : 
                        (paymentTerms === 'PARTIAL' ? parseFloat($('#paidAmount').val()) : 0);
+
+    if (paymentTerms === 'PARTIAL') {
+        if (isNaN(paidAmount) || paidAmount < 0) {
+            alert('Paid amount must be a positive number');
+            return;
+        }
+        if (paidAmount > grandTotal) {
+            alert('Paid amount cannot exceed grand total');
+            return;
+        }
+    }
     
     const data = {
         customer_id: selectedCustomer.id,
@@ -719,7 +873,16 @@ function showQuickAddCustomer() {
     $('#quickAddCustomerModal').modal('show');
 }
 
+// Live validation events
+$('#quickCustomerName').on('input', () => validateQuickCustomerForm(false));
+$('#quickCustomerCompany').on('input', () => validateQuickCustomerForm(false));
+$('#quickCustomerPhone').on('input', handlePhoneInput);
+
 function saveQuickCustomer() {
+    if (!validateQuickCustomerForm()) {
+        return;
+    }
+
     const data = {
         name: $('#quickCustomerName').val(),
         phone: $('#quickCustomerPhone').val(),
@@ -755,6 +918,45 @@ $(document).on('keydown', function(e) {
     } else if (e.key === 'Escape') {
         $('#barcodeInput').val('').focus();
     }
+});
+
+// Global scanner listener (works even when barcode input is not focused)
+$(document).on('keydown', function(e) {
+    const now = Date.now();
+    
+    // Reset buffer if idle between keys
+    if (!scanStartTime || now - scanLastTime > 150) {
+        scanBuffer = '';
+        scanStartTime = now;
+    }
+    scanLastTime = now;
+
+    // Ignore modifier and control keys
+    if (e.key.length > 1 && e.key !== 'Enter') {
+        return;
+    }
+
+    if (e.key === 'Enter') {
+        const duration = now - scanStartTime;
+        if (scanBuffer.length >= 3 && duration < 1200) {
+            e.preventDefault();
+            e.stopPropagation();
+            const scannedCode = scanBuffer;
+            scanBuffer = '';
+            scanStartTime = null;
+            
+            // Route to existing flow
+            $('#barcodeInput').val('');
+            searchProduct(scannedCode);
+        } else {
+            scanBuffer = '';
+            scanStartTime = null;
+        }
+        return;
+    }
+
+    // Collect printable characters
+    scanBuffer += e.key;
 });
 
 // Hide autocomplete when clicking outside
