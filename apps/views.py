@@ -19,30 +19,44 @@ from .models import (
 # ==================== DASHBOARD ====================
 @login_required
 def dashboard(request):
-    """Main dashboard with key metrics"""
     today = timezone.now().date()
-    week_ago = today - timedelta(days=7)
-    month_ago = today - timedelta(days=30)
-    
-    # Today's sales
+
+    range_type = request.GET.get('range', '7d')
+
+    if range_type == '1m':
+        days = 30
+    elif range_type == '3m':
+        days = 90
+    else:
+        days = 7  # default
+
+    start_date = today - timedelta(days=days - 1)
+
+    # Sales chart data
+    sales_chart = []
+    for i in range(days):
+        date = start_date + timedelta(days=i)
+        daily_total = Invoice.objects.filter(
+            invoice_date__date=date,
+            status='CONFIRMED'
+        ).aggregate(total=Sum('grand_total'))['total'] or 0
+
+        sales_chart.append({
+            'date': date.strftime('%d %b'),
+            'amount': float(daily_total)
+        })
+
+    # Existing stats (unchanged)
     today_sales = Invoice.objects.filter(
         invoice_date__date=today,
         status='CONFIRMED'
-    ).aggregate(
-        total=Sum('grand_total'),
-        count=Count('id')
-    )
-    
-    # This month's sales
+    ).aggregate(total=Sum('grand_total'), count=Count('id'))
+
     month_sales = Invoice.objects.filter(
-        invoice_date__date__gte=month_ago,
+        invoice_date__date__gte=today - timedelta(days=30),
         status='CONFIRMED'
-    ).aggregate(
-        total=Sum('grand_total'),
-        count=Count('id')
-    )
-    
-    # Outstanding amount
+    ).aggregate(total=Sum('grand_total'), count=Count('id'))
+
     outstanding = Customer.objects.aggregate(
         total=Sum('outstanding_balance')
     )['total'] or 0
@@ -52,15 +66,12 @@ def dashboard(request):
         is_active=True,
         stock_qty__lte=F('reorder_level')
     ).count()
-    
-    # Recent invoices
     recent_invoices = Invoice.objects.filter(
         status='CONFIRMED'
     ).select_related('customer').order_by('-invoice_date')[:10]
-    
-    # Top selling products this month
+ # Top selling products this month
     top_products = InvoiceItem.objects.filter(
-        invoice__invoice_date__date__gte=month_ago,
+        invoice__invoice_date__date__gte=today - timedelta(days=30),
         invoice__status='CONFIRMED'
     ).values(
         'product__sku',
@@ -69,20 +80,6 @@ def dashboard(request):
         total_qty=Sum('quantity'),
         total_amount=Sum('amount')
     ).order_by('-total_amount')[:10]
-    
-    # Sales chart data (last 7 days)
-    sales_chart = []
-    for i in range(7):
-        date = today - timedelta(days=6-i)
-        daily_total = Invoice.objects.filter(
-            invoice_date__date=date,
-            status='CONFIRMED'
-        ).aggregate(total=Sum('grand_total'))['total'] or 0
-        sales_chart.append({
-            'date': date.strftime('%d %b'),
-            'amount': float(daily_total)
-        })
-    
     context = {
         'today_sales': today_sales['total'] or 0,
         'today_count': today_sales['count'],
@@ -93,6 +90,7 @@ def dashboard(request):
         'recent_invoices': recent_invoices,
         'top_products': top_products,
         'sales_chart': json.dumps(sales_chart),
+        'active_range': range_type,
     }
     
     return render(request, 'dashboard.html', context)

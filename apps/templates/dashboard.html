@@ -147,11 +147,20 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-graph-up me-2"></i>Sales Trend (Last 7 Days)</span>
-                <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-outline-secondary active">7D</button>
-                    <button type="button" class="btn btn-outline-secondary">1M</button>
-                    <button type="button" class="btn btn-outline-secondary">3M</button>
-                </div>
+                <div class="btn-group btn-group-sm">
+                <a href="?range=7d"
+                class="btn btn-outline-secondary {% if active_range == '7d' %}active{% endif %}">
+                    7D
+                </a>
+                <a href="?range=1m"
+                class="btn btn-outline-secondary {% if active_range == '1m' %}active{% endif %}">
+                    1M
+                </a>
+                <a href="?range=3m"
+                class="btn btn-outline-secondary {% if active_range == '3m' %}active{% endif %}">
+                    3M
+                </a>
+            </div>
             </div>
             <div class="card-body">
                 <canvas id="salesChart"></canvas>
@@ -274,7 +283,6 @@
     // Sales Chart
     const salesData = {{ sales_chart|safe }};
     const ctx = document.getElementById('salesChart').getContext('2d');
-    
     new Chart(ctx, {
         type: 'line',
         data: {
