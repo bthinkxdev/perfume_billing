@@ -508,7 +508,7 @@ class StockAdjustment(models.Model):
     adjustment_type = models.CharField(max_length=20, choices=ADJUSTMENT_TYPE)
     quantity = models.DecimalField(max_digits=10, decimal_places=2)
     
-    reason = models.TextField()
+    reason = models.TextField(blank=True)
     reference_no = models.CharField(max_length=100, blank=True)
     
     previous_qty = models.DecimalField(max_digits=10, decimal_places=2)

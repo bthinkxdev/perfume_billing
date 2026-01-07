@@ -1,0 +1,446 @@
+Perfume Billing Software – Wholesale Focus
+Reference: Real Invoice Format (Middle East Wholesale Style)
+
+1. Business Context (Updated)
+This billing software is designed for:
+Perfume wholesale traders
+
+
+Operating with barcode-based SKUs
+
+
+Selling bulk quantities
+
+
+Using simple tax/no-tax invoices
+
+
+Needing fast manual overrides
+
+
+Serving repeat wholesale customers
+
+
+The invoice format proves:
+Speed > fancy UI
+
+
+Structured, printable layout is critical
+
+
+Barcode & item number are essential
+
+
+Customer credit is common
+
+
+
+2. Invoice Structure (Derived from Image)
+2.1 Invoice Header – Company Section
+System must support configurable company header
+Fields:
+Company Name (English + Arabic – optional)
+
+
+Logo
+
+
+Address (multi-line)
+
+
+Phone
+
+
+Fax (optional)
+
+
+Mobile
+
+
+Email
+
+
+TRN / Registration No (optional)
+
+
+📌 Requirement
+Admin can edit header details
+
+
+Header appears on every invoice PDF & print
+
+
+
+3. Invoice Meta Information
+Field
+Requirement
+Invoice No
+Auto-increment
+Date
+Auto (editable by admin)
+Customer ID
+Auto-linked
+Terms
+Cash / Credit / Advance
+
+📌 System Logic
+Invoice number must be sequential
+
+
+Cannot be reused once printed
+
+
+Admin can enable yearly reset
+
+
+
+4. Customer Section (Wholesale-Ready)
+Fields
+Customer Name
+
+
+Company Name
+
+
+Address
+
+
+Phone
+
+
+Email
+
+
+📌 Behavior
+Select customer by phone or name
+
+
+If not found → quick create
+
+
+Customer ID auto-generated
+
+
+Customer type: Wholesale / Retail
+
+
+📌 Wholesale Logic
+Customer ID is mandatory for credit sales
+
+
+System tracks balance per customer
+
+
+
+5. Item Table (Core Billing Engine)
+Columns (Exact Match to Invoice)
+Column
+System Requirement
+S No
+Auto
+Barcode
+Scanner / manual
+Item No
+Internal SKU
+Description
+Perfume name + size
+Qty
+Numeric
+Unit Price
+Editable
+Amount
+Auto (Qty × Price)
+
+📌 Important Observations from Invoice
+Unit price is frequently overridden
+
+
+Barcode is primary input
+
+
+Description must be human-readable
+
+
+Some items may have missing barcode → manual allowed
+
+
+
+6. Perfume Product Model (Critical)
+Each perfume product must support:
+Core Fields
+Brand
+
+
+Fragrance Name
+
+
+Concentration (Attar / EDP / EDT / Oil)
+
+
+Size (ml)
+
+
+SKU / Item No
+
+
+Barcode (unique)
+
+
+Cost Price
+
+
+Wholesale Price
+
+
+Retail Price
+
+
+Inventory Fields
+Stock Qty
+
+
+Batch No (optional)
+
+
+Supplier
+
+
+Purchase Date
+
+
+📌 Why this matters
+Same perfume sold in multiple sizes
+
+
+Wholesale pricing differs per customer
+
+
+High-volume repeat sales
+
+
+
+7. Billing Behavior Rules (Wholesale-Focused)
+Pricing Logic
+Default → Wholesale price
+
+
+Staff can override unit price
+
+
+Override must be logged (admin view)
+
+
+Quantity Logic
+Supports large quantities (10, 50, 100+)
+
+
+Decimal quantities disabled (unless enabled)
+
+
+
+8. Payment & Terms
+Supported Terms
+Cash
+
+
+Credit
+
+
+Partial (advance + balance)
+
+
+📌 Credit Workflow
+Bill marked as Credit
+
+
+Amount added to customer outstanding
+
+
+Payment entry reduces balance later
+
+
+📌 Restrictions
+Credit allowed only for Wholesale customers
+
+
+Credit limit warning (configurable)
+
+
+
+9. Totals & Footer (Implicit Requirement)
+Though not shown clearly, system must support:
+Subtotal
+
+
+Discount (optional)
+
+
+Grand Total
+
+
+Paid Amount
+
+
+Balance Due
+
+
+📌 Footer Notes
+Custom note text
+
+
+Return policy
+
+
+Thank-you message
+
+
+
+10. Bill Output Requirements
+Formats
+Print (A4)
+
+
+PDF
+
+
+WhatsApp share
+
+
+Email
+
+
+📌 Print Priority
+Must match real invoice layout
+
+
+No UI elements on print
+
+
+Clean grid-based layout
+
+
+
+11. Bill Listing & Search
+Filters
+Date range
+
+
+Customer
+
+
+Invoice number
+
+
+Payment type
+
+
+Outstanding only
+
+
+Actions
+Reprint
+
+
+View PDF
+
+
+Cancel (admin)
+
+
+Payment entry
+
+
+
+12. Inventory Impact Rules
+Stock auto-deducted on invoice save
+
+
+Cancelled bill restores stock
+
+
+Manual adjustment allowed (admin)
+
+
+
+13. Reports (Wholesale-Critical)
+Sales Reports
+Daily sales
+
+
+Customer-wise sales
+
+
+Product-wise sales
+
+
+Credit Reports
+Outstanding customers
+
+
+Aging report
+
+
+Payment history
+
+
+Inventory Reports
+Current stock
+
+
+Low stock
+
+
+Fast-moving perfumes
+
+
+
+14. Admin & Security
+Role-based access
+
+
+Price override logs
+
+
+Bill cancellation logs
+
+
+User activity tracking
+
+
+
+15. UX Priorities (From Invoice Reality)
+✔ Barcode-first
+ ✔ Keyboard-friendly
+ ✔ Minimal mouse use
+ ✔ Fast bill completion (<30 sec)
+ ✔ Print-perfect layout
+
+16. Phase-wise Development Plan (Suggested)
+Phase 1 (MVP – Wholesale Ready)
+Billing
+
+
+Products
+
+
+Customers
+
+
+PDF invoice
+
+
+Reports
+
+
+Phase 2
+Purchase management
+
+
+Supplier credits
+
+
+Thermal printing
+
+
+GST/TAX
+

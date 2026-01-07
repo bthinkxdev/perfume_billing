@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Q, Sum, F
+from django.db.models import Q, Sum, F, Count
 from django.http import JsonResponse
 from django.core.paginator import Paginator
 from .models import (
@@ -45,6 +45,12 @@ def products_list(request):
     elif status == 'low_stock':
         products = products.filter(stock_qty__lte=F('reorder_level'))
     
+    # Low stock count (after applying filters/search)
+    low_stock_count = products.filter(
+        stock_qty__lte=F('reorder_level'),
+        stock_qty__gt=0
+    ).count()
+    
     # Pagination
     paginator = Paginator(products, 25)
     page_number = request.GET.get('page')
@@ -59,6 +65,7 @@ def products_list(request):
         'search': search,
         'concentration_choices': Product.CONCENTRATION_CHOICES,
         'total_products': products.count(),
+        'low_stock_count': low_stock_count,
     }
     return render(request, 'products_list.html', context)
 
@@ -314,7 +321,7 @@ def stock_adjustment(request):
                 product=product,
                 adjustment_type=request.POST.get('adjustment_type'),
                 quantity=Decimal(request.POST.get('quantity')),
-                reason=request.POST.get('reason'),
+                reason=request.POST.get('reason', '') or '',
                 reference_no=request.POST.get('reference_no', ''),
                 created_by=request.user
             )
@@ -438,7 +445,7 @@ def ajax_product_by_barcode(request):
 def brands_list(request):
     """List all brands"""
     brands = Brand.objects.annotate(
-        product_count=models.Count('products')
+        product_count=Count('products')
     ).order_by('name')
     
     context = {'brands': brands}

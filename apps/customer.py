@@ -308,13 +308,18 @@ def customer_ledger(request, pk=None):
         
         # Combine and sort by date
         for invoice in invoices:
+            # Only raise receivable for credit/partial terms and for outstanding amount
+            due_amount = invoice.balance_due if invoice.payment_terms in ['CREDIT', 'PARTIAL'] else Decimal('0.00')
+            if due_amount <= 0:
+                continue  # Cash invoices (or fully paid) shouldn't impact customer balance
+            
             ledger_entries.append({
                 'customer': customer,
                 'date': invoice.invoice_date,
                 'type': 'INVOICE',
                 'reference': invoice.invoice_number,
                 'description': f'Invoice - {invoice.payment_terms}',
-                'debit': invoice.grand_total,
+                'debit': due_amount,
                 'credit': Decimal('0.00'),
                 'balance': None,  # Will calculate
                 'invoice': invoice,

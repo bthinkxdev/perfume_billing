@@ -13,8 +13,11 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-10">
-        <form method="post">
+        <form id="productForm" method="post" novalidate>
             {% csrf_token %}
+            <div id="formAlert" class="alert alert-danger d-none" role="alert">
+                Please fix the highlighted fields below.
+            </div>
             
             <div class="card">
                 <div class="card-header">
@@ -28,12 +31,14 @@
                             <input type="text" name="sku" class="form-control" required 
                                    value="{% if product %}{{ product.sku }}{% endif %}"
                                    placeholder="e.g., PERF001">
+                            <div class="invalid-feedback"></div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Barcode</label>
                             <input type="text" name="barcode" class="form-control" 
                                    value="{% if product %}{{ product.barcode }}{% endif %}"
                                    placeholder="Scan or enter barcode">
+                            <div class="invalid-feedback"></div>
                         </div>
 
                         <!-- Brand -->
@@ -52,6 +57,7 @@
                                     <i class="bi bi-plus"></i>
                                 </button>
                             </div>
+                            <div class="invalid-feedback d-block"></div>
                         </div>
 
                         <!-- Fragrance Name -->
@@ -60,6 +66,7 @@
                             <input type="text" name="fragrance_name" class="form-control" required 
                                    value="{% if product %}{{ product.fragrance_name }}{% endif %}"
                                    placeholder="e.g., Black Orchid">
+                            <div class="invalid-feedback"></div>
                         </div>
 
                         <!-- Concentration & Size -->
@@ -73,12 +80,14 @@
                                 </option>
                                 {% endfor %}
                             </select>
+                            <div class="invalid-feedback"></div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Size (ml) <span class="text-danger">*</span></label>
-                            <input type="number" name="size_ml" class="form-control" step="0.01" required 
+                            <input type="number" name="size_ml" class="form-control" step="0.01" min="0.01" required 
                                    value="{% if product %}{{ product.size_ml }}{% endif %}"
                                    placeholder="e.g., 50">
+                            <div class="invalid-feedback"></div>
                         </div>
                     </div>
                 </div>
@@ -92,21 +101,24 @@
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label">Cost Price <span class="text-danger">*</span></label>
-                            <input type="number" name="cost_price" class="form-control" step="0.01" required 
+                            <input type="number" name="cost_price" class="form-control" step="0.01" min="0.01" required 
                                    value="{% if product %}{{ product.cost_price }}{% endif %}"
                                    placeholder="0.00">
+                            <div class="invalid-feedback"></div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Wholesale Price <span class="text-danger">*</span></label>
-                            <input type="number" name="wholesale_price" class="form-control" step="0.01" required 
+                            <input type="number" name="wholesale_price" class="form-control" step="0.01" min="0.01" required 
                                    value="{% if product %}{{ product.wholesale_price }}{% endif %}"
                                    placeholder="0.00">
+                            <div class="invalid-feedback"></div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Retail Price <span class="text-danger">*</span></label>
-                            <input type="number" name="retail_price" class="form-control" step="0.01" required 
+                            <input type="number" name="retail_price" class="form-control" step="0.01" min="0.01" required 
                                    value="{% if product %}{{ product.retail_price }}{% endif %}"
                                    placeholder="0.00">
+                            <div class="invalid-feedback"></div>
                         </div>
                     </div>
                 </div>
@@ -123,6 +135,7 @@
                             <input type="number" name="stock_qty" class="form-control" step="0.01" 
                                    value="{% if product %}{{ product.stock_qty }}{% else %}0{% endif %}"
                                    {% if is_edit %}readonly{% endif %}>
+                            <div class="invalid-feedback"></div>
                             {% if is_edit %}
                             <small class="text-muted">Use Stock Adjustment to modify stock</small>
                             {% endif %}
@@ -132,12 +145,14 @@
                             <input type="number" name="reorder_level" class="form-control" step="0.01" 
                                    value="{% if product %}{{ product.reorder_level }}{% else %}10{% endif %}"
                                    placeholder="10">
+                            <div class="invalid-feedback"></div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Batch No</label>
                             <input type="text" name="batch_no" class="form-control" 
                                    value="{% if product %}{{ product.batch_no }}{% endif %}"
                                    placeholder="Optional">
+                            <div class="invalid-feedback"></div>
                         </div>
                     </div>
                 </div>
@@ -159,6 +174,7 @@
                                 </option>
                                 {% endfor %}
                             </select>
+                            <div class="invalid-feedback"></div>
                         </div>
                     </div>
                 </div>
@@ -206,6 +222,113 @@
 
 {% block extra_js %}
 <script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('productForm');
+    if (!form) return;
+
+    const alertBox = document.getElementById('formAlert');
+    const rules = {
+        sku: { type: 'text', label: 'SKU / Item No', required: true },
+        brand: { type: 'select', label: 'Brand', required: true },
+        fragrance_name: { type: 'text', label: 'Fragrance Name', required: true },
+        concentration: { type: 'select', label: 'Concentration', required: true },
+        size_ml: { type: 'number', label: 'Size (ml)', required: true, positive: true, notZero: true },
+        cost_price: { type: 'number', label: 'Cost Price', required: true, positive: true, notZero: true },
+        wholesale_price: { type: 'number', label: 'Wholesale Price', required: true, positive: true, notZero: true },
+        retail_price: { type: 'number', label: 'Retail Price', required: true, positive: true, notZero: true },
+        stock_qty: { type: 'number', label: 'Opening Stock', nonNegative: true },
+        reorder_level: { type: 'number', label: 'Reorder Level', nonNegative: true },
+        batch_no: { type: 'text', label: 'Batch No', required: false },
+        supplier: { type: 'select', label: 'Supplier', required: false }
+    };
+
+    const clearErrors = () => {
+        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        form.querySelectorAll('.invalid-feedback').forEach(fb => fb.textContent = '');
+        if (alertBox) alertBox.classList.add('d-none');
+    };
+
+    const showError = (field, message) => {
+        if (!field) return;
+        field.classList.add('is-invalid');
+        const container = field.closest('.col-md-6, .col-md-4, .col-md-12');
+        const feedback = container ? container.querySelector('.invalid-feedback') : null;
+        if (feedback) feedback.textContent = message;
+    };
+
+    const validateField = (name, rule) => {
+        const field = form.elements[name];
+        if (!field) return true;
+        const raw = (field.value || '').trim();
+
+        // Required text/select
+        if (rule.required && raw === '') {
+            showError(field, `${rule.label} is required.`);
+            return false;
+        }
+
+        if (rule.type === 'number') {
+            if (raw === '') {
+                return !rule.required;
+            }
+            const num = parseFloat(raw);
+            if (isNaN(num)) {
+                showError(field, `${rule.label} must be a valid number.`);
+                return false;
+            }
+            if (rule.notZero && num === 0) {
+                showError(field, `${rule.label} cannot be zero.`);
+                return false;
+            }
+            if (rule.positive && num <= 0) {
+                showError(field, `${rule.label} must be greater than 0.`);
+                return false;
+            }
+            if (rule.nonNegative && num < 0) {
+                showError(field, `${rule.label} cannot be negative.`);
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    // Clear field error on user input/change
+    Object.keys(rules).forEach(name => {
+        const field = form.elements[name];
+        if (!field) return;
+        const handler = () => {
+            field.classList.remove('is-invalid');
+            const container = field.closest('.col-md-6, .col-md-4, .col-md-12');
+            const feedback = container ? container.querySelector('.invalid-feedback') : null;
+            if (feedback) feedback.textContent = '';
+        };
+        field.addEventListener('input', handler);
+        field.addEventListener('change', handler);
+    });
+
+    form.addEventListener('submit', (e) => {
+        clearErrors();
+        let isValid = true;
+        let firstInvalid = null;
+
+        Object.entries(rules).forEach(([name, rule]) => {
+            const field = form.elements[name];
+            const ok = validateField(name, rule);
+            if (!ok) {
+                isValid = false;
+                if (!firstInvalid) firstInvalid = field;
+            }
+        });
+
+        if (!isValid) {
+            e.preventDefault();
+            if (alertBox) alertBox.classList.remove('d-none');
+            if (firstInvalid) firstInvalid.focus();
+        }
+    });
+});
+
 function saveBrand() {
     const form = document.getElementById('addBrandForm');
     const formData = new FormData(form);

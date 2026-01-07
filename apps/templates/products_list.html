@@ -33,7 +33,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <p class="text-muted mb-1" style="font-size: 0.875rem;">Low Stock</p>
-                        <h3 class="mb-0 fw-bold text-warning">{{ page_obj.paginator.object_list|length }}</h3>
+                        <h3 class="mb-0 fw-bold text-warning">{{ low_stock_count|default:0 }}</h3>
                     </div>
                     <div class="bg-warning bg-opacity-10 p-3 rounded">
                         <i class="bi bi-exclamation-triangle text-warning" style="font-size: 1.5rem;"></i>
