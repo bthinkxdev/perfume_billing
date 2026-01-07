@@ -82,7 +82,7 @@
     </div>
     <div class="card-body">
         <form method="get" class="row g-3">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Search Product</label>
                 <input type="text" name="search" class="form-control" 
                        placeholder="SKU, Barcode, Name..." value="{{ search }}">
@@ -120,6 +120,13 @@
                     <i class="bi bi-search"></i>
                 </button>
             </div>
+
+            <div class="col-md-1 d-flex align-items-end">
+                <a href="{% url 'apps:product_report' %}" class="btn btn-secondary w-100">
+                Clear
+                 </a>
+            </div
+
         </form>
     </div>
 </div>

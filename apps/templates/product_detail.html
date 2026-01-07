@@ -140,8 +140,10 @@
                                 <td>
                                     {% if adj.adjustment_type == 'ADD' %}
                                     <span class="badge bg-success">Add</span>
-                                    {% else %}
+                                    {% elif  adj.adjustment_type == 'REMOVE'%}
                                     <span class="badge bg-danger">Remove</span>
+                                    {% elif  adj.adjustment_type == 'CORRECTION'%}
+                                    <span class="badge bg-danger">Correction</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ adj.quantity }}</td>

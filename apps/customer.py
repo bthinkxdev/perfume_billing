@@ -262,7 +262,7 @@ def customer_delete(request, pk):
 @login_required
 def customer_ledger(request, pk=None):
     """Customer ledger showing all transactions"""
-    
+    search = request.GET.get('search', '')
     # If specific customer
     if pk:
         customer = get_object_or_404(Customer, pk=pk)
@@ -271,7 +271,6 @@ def customer_ledger(request, pk=None):
         # All customers or filtered
         customers_qs = Customer.objects.filter(is_active=True)
         
-        search = request.GET.get('search', '')
         if search:
             customers_qs = customers_qs.filter(
                 Q(customer_id__icontains=search) |

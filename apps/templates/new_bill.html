@@ -84,15 +84,14 @@
     }
     
     .items-table thead {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: #1e293b;
     }
     
     .items-table thead th {
-        color: white !important;
-        font-weight: 600;
-        padding: 1rem;
-        border: none;
+    background-color: #4f46e5 
+    color: #ffffff 
+    font-weight: 600;
+    border-bottom: 2px solid #6082b1ff
     }
     
     .items-table tbody tr {
@@ -247,7 +246,7 @@
         <h5 class="mb-3"><i class="bi bi-person-circle me-2"></i>Select Customer</h5>
         <div class="row">
             <div class="col-md-8">
-                <div class="customer-search-box">
+                <div class="customer-search-box mt-3">
                     <div class="d-flex align-items-center">
                         <i class="bi bi-search fs-4 text-muted ms-2"></i>
                         <input type="text" id="customerSearch" class="flex-grow-1" 
@@ -268,14 +267,14 @@
                         </div>
                         <div class="col-md-6 text-end">
                             <div class="small">Balance: <strong id="selectedCustomerBalance">₹0</strong></div>
-                            <div class="small">Credit Limit: <strong id="selectedCustomerCredit">₹0</strong></div>
+                            <div class="small">Credit Limit Available: <strong id="selectedCustomerCredit">₹0</strong></div>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="text-end">
-                    <div class="small mb-1">Invoice Date</div>
+                <div class="mb-5">
+                    <label>Invoice Date</label>
                     <input type="date" class="form-control" id="invoiceDate" 
                            value="{{ today }}" style="background: white;">
                 </div>
@@ -634,7 +633,7 @@ function selectCustomer(customer) {
     $('#selectedCustomerName').text(displayName);
     $('#selectedCustomerCompany').text(customer.company_name || customer.customer_id);
     $('#selectedCustomerBalance').text('₹' + customer.outstanding_balance.toFixed(2));
-    $('#selectedCustomerCredit').text('₹' + customer.credit_limit.toFixed(2));
+    $('#selectedCustomerCredit').text('₹' + (customer.available_credit ?? (customer.credit_limit - customer.outstanding_balance)).toFixed(2));
     $('#customerInfo').show();
     
     // Focus on barcode input
@@ -723,7 +722,7 @@ function renderItems() {
                 </td>
                 <td>
                     <input type="number" class="item-input text-end" 
-                           value="${item.quantity}" min="0.01" step="1"
+                           value="${item.quantity}" min="1" step="1"
                            onchange="updateQuantity(${item.id}, this.value)">
                 </td>
                 <td>

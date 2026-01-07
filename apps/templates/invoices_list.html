@@ -143,7 +143,7 @@
                        value="{{ request.GET.date_to }}">
             </div>
             
-            <div class="filter-item" style="flex: 0;">
+            <div class="filter-item">
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-search"></i> Filter
                 </button>
@@ -243,7 +243,7 @@
                                    target="_blank" title="Print">
                                     <i class="bi bi-printer"></i>
                                 </a>
-                                {% if invoice.status == 'CONFIRMED' %}
+                                {% if invoice.status != 'CANCELLED' %}
                                 <button class="btn btn-sm btn-outline-danger" 
                                         onclick="cancelInvoice({{ invoice.id }})" title="Cancel">
                                     <i class="bi bi-x-circle"></i>

@@ -53,7 +53,7 @@ class Customer(models.Model):
     name = models.CharField(max_length=255)
     company_name = models.CharField(max_length=255, blank=True)
     address = models.TextField(blank=True)
-    phone = models.CharField(max_length=20, db_index=True)
+    phone = models.CharField(max_length=20, db_index=True,unique=True)
     email = models.EmailField(blank=True)
     
     # Credit management

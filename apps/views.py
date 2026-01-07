@@ -9,7 +9,7 @@ from django.views.decorators.http import require_http_methods
 from decimal import Decimal
 from datetime import datetime, timedelta
 import json
-
+from django.db import transaction
 from .models import (
     Invoice, InvoiceItem, Product, Customer, Payment,
     CompanyProfile, PriceOverrideLog, ActivityLog
@@ -117,84 +117,94 @@ def new_bill(request):
 @login_required
 @require_http_methods(["POST"])
 def save_invoice(request):
-    """Save invoice via AJAX"""
     try:
         data = json.loads(request.body)
-        
-        # Get customer
         customer = get_object_or_404(Customer, id=data['customer_id'])
-        
-        # Create invoice
-        invoice = Invoice.objects.create(
-            customer=customer,
-            payment_terms=data['payment_terms'],
-            discount_amount=Decimal(data.get('discount_amount', 0)),
-            paid_amount=Decimal(data.get('paid_amount', 0)),
-            notes=data.get('notes', ''),
-            created_by=request.user,
-            status='DRAFT'
-        )
-        
-        # Add items
-        for idx, item_data in enumerate(data['items'], 1):
-            product = get_object_or_404(Product, id=item_data['product_id'])
-            
-            unit_price = Decimal(item_data['unit_price'])
-            quantity = Decimal(item_data['quantity'])
-            
-            # Check if price is overridden
-            default_price = product.get_default_price(customer.customer_type)
-            is_overridden = unit_price != default_price
-            
-            invoice_item = InvoiceItem.objects.create(
-                invoice=invoice,
-                serial_no=idx,
-                product=product,
-                barcode=product.barcode or '',
-                item_no=product.sku,
-                description=product.description,
-                quantity=quantity,
-                unit_price=unit_price,
-                is_price_overridden=is_overridden,
-                original_price=default_price if is_overridden else None
+
+        # ---------- PRE-CHECK CREDIT (BEFORE DB WRITE) ----------
+        temp_subtotal = Decimal(0)
+
+        for item in data['items']:
+            qty = Decimal(item['quantity'])
+            price = Decimal(item['unit_price'])
+            temp_subtotal += qty * price
+
+        discount = Decimal(data.get('discount_amount', 0))
+        grand_total = temp_subtotal - discount
+
+        # ---------- PRE-CHECK CREDIT (BLOCK DRAFT + CONFIRM) ----------
+        payment_terms = data['payment_terms']
+        paid_amount = Decimal(data.get('paid_amount', 0))
+        balance_due = grand_total - paid_amount
+
+        if payment_terms in ['CREDIT', 'PARTIAL'] and balance_due > 0:
+            if not customer.can_take_credit(balance_due):
+                return JsonResponse({
+                    'success': False,
+                    'error': (
+                        f'Insufficient credit. '
+                        f'Available credit: ₹{customer.get_available_credit()}'
+                    )
+                }, status=400)
+        # ---------- DB TRANSACTION ----------
+        with transaction.atomic():
+
+            invoice = Invoice.objects.create(
+                customer=customer,
+                payment_terms=payment_terms,
+                discount_amount=discount,
+                paid_amount=paid_amount,
+                notes=data.get('notes', ''),
+                created_by=request.user,
+                status='DRAFT'
             )
-            
-            # Log price override
-            if is_overridden:
-                PriceOverrideLog.objects.create(
-                    invoice_item=invoice_item,
+
+            for idx, item_data in enumerate(data['items'], 1):
+                product = get_object_or_404(Product, id=item_data['product_id'])
+
+                unit_price = Decimal(item_data['unit_price'])
+                quantity = Decimal(item_data['quantity'])
+
+                default_price = product.get_default_price(customer.customer_type)
+                is_overridden = unit_price != default_price
+
+                invoice_item = InvoiceItem.objects.create(
+                    invoice=invoice,
+                    serial_no=idx,
                     product=product,
-                    customer=customer,
-                    original_price=default_price,
-                    overridden_price=unit_price,
-                    user=request.user
+                    barcode=product.barcode or '',
+                    item_no=product.sku,
+                    description=product.description,
+                    quantity=quantity,
+                    unit_price=unit_price,
+                    is_price_overridden=is_overridden,
+                    original_price=default_price if is_overridden else None
                 )
-        
-        # Calculate totals
-        invoice.calculate_totals()
-        
-        # Confirm invoice if requested
-        if data.get('confirm', False):
-            # Check credit limit for credit sales
-            if invoice.payment_terms in ['CREDIT', 'PARTIAL'] and invoice.balance_due > 0:
-                if not customer.can_take_credit(invoice.balance_due):
-                    return JsonResponse({
-                        'success': False,
-                        'error': f'Credit limit exceeded. Available credit: {customer.get_available_credit()}'
-                    })
-            
-            invoice.confirm_invoice(request.user)
-            
-            # Log activity
-            ActivityLog.log_activity(
-                user=request.user,
-                action_type='CREATE',
-                model_name='Invoice',
-                object_id=invoice.invoice_number,
-                description=f'Created and confirmed invoice {invoice.invoice_number}',
-                request=request
-            )
-        
+
+                if is_overridden:
+                    PriceOverrideLog.objects.create(
+                        invoice_item=invoice_item,
+                        product=product,
+                        customer=customer,
+                        original_price=default_price,
+                        overridden_price=unit_price,
+                        user=request.user
+                    )
+
+            invoice.calculate_totals()
+
+            if data.get('confirm', False):
+                invoice.confirm_invoice(request.user)
+
+                ActivityLog.log_activity(
+                    user=request.user,
+                    action_type='CREATE',
+                    model_name='Invoice',
+                    object_id=invoice.invoice_number,
+                    description=f'Created and confirmed invoice {invoice.invoice_number}',
+                    request=request
+                )
+
         return JsonResponse({
             'success': True,
             'invoice_id': invoice.id,
@@ -434,31 +444,70 @@ def invoice_print(request, invoice_id):
 def cancel_invoice(request, invoice_id):
     """Cancel invoice"""
     invoice = get_object_or_404(Invoice, id=invoice_id)
-    
-    if invoice.status != 'CONFIRMED':
+    if invoice.status == 'CANCELLED':
         return JsonResponse({
             'success': False,
-            'error': 'Only confirmed invoices can be cancelled'
+            'error': 'Invoice is already cancelled'
         })
-    
-    if invoice.cancel_invoice(request.user):
-        ActivityLog.log_activity(
-            user=request.user,
-            action_type='CANCEL',
-            model_name='Invoice',
-            object_id=invoice.invoice_number,
-            description=f'Cancelled invoice {invoice.invoice_number}',
-            request=request
-        )
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'Invoice cancelled successfully'
-        })
-    
+
+    # If CONFIRMED → restore stock & ledger
+    if invoice.status == 'CONFIRMED':
+        invoice.cancel_invoice(request.user)
+
+    # If DRAFT → just mark cancelled
+    if invoice.status == 'DRAFT':
+        invoice.status = 'CANCELLED'
+        invoice.save(update_fields=['status'])
+
+    ActivityLog.log_activity(
+        user=request.user,
+        action_type='CANCEL',
+        model_name='Invoice',
+        object_id=invoice.invoice_number,
+        description=f'Cancelled invoice {invoice.invoice_number}',
+        request=request
+    )
     return JsonResponse({
-        'success': False,
-        'error': 'Failed to cancel invoice'
+        'success': True,
+        'message': 'Invoice cancelled successfully'
     })
+    
+@login_required
+@require_http_methods(["POST"])
+def confirm_draft_invoice(request, invoice_id):
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+
+    if invoice.status != 'DRAFT':
+        return JsonResponse({
+            'success': False,
+            'error': 'Only draft invoices can be confirmed'
+        })
+
+    # Credit check (same as save_invoice)
+    if invoice.payment_terms in ['CREDIT', 'PARTIAL'] and invoice.balance_due > 0:
+        customer = invoice.customer
+        if not customer.can_take_credit(invoice.balance_due):
+            return JsonResponse({
+                'success': False,
+                'error': f'Credit limit exceeded. Available credit: {customer.get_available_credit()}'
+            })
+
+    # Confirm invoice (this already deducts stock & updates ledger)
+    invoice.confirm_invoice(request.user)
+
+    ActivityLog.log_activity(
+        user=request.user,
+        action_type='UPDATE',
+        model_name='Invoice',
+        object_id=invoice.invoice_number,
+        description=f'Confirmed draft invoice {invoice.invoice_number}',
+        request=request
+    )
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Invoice confirmed successfully'
+    })
+
 
 
