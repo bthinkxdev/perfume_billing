@@ -136,6 +136,7 @@
                         <th>Total Sales</th>
                         <th>Outstanding</th>
                         <th>Credit Limit</th>
+                        <th>Disc %</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -168,6 +169,7 @@
                             {% endif %}
                         </td>
                         <td>{{ customer.credit_limit|floatformat:2 }}</td>
+                        <td>{{ customer.discount_percent|floatformat:2 }}%</td>
                         <td>
                             {% if customer.is_active %}
                             <span class="badge bg-success">Active</span>
@@ -185,6 +187,9 @@
                                 </a>
                                 <a href="{% url 'apps:customer_ledger_detail' customer.id %}" class="btn btn-outline-info" title="Ledger">
                                     <i class="bi bi-journal-text"></i>
+                                </a>
+                                <a href="{% url 'apps:customer_statement' customer.id %}" class="btn btn-outline-dark" title="Statement">
+                                    <i class="bi bi-file-earmark-text"></i>
                                 </a>
                             </div>
                         </td>

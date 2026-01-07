@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from decimal import Decimal
 import uuid
@@ -55,6 +55,13 @@ class Customer(models.Model):
     address = models.TextField(blank=True)
     phone = models.CharField(max_length=20, db_index=True,unique=True)
     email = models.EmailField(blank=True)
+    discount_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Default invoice discount percentage for this customer"
+    )
     
     # Credit management
     credit_limit = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -232,7 +239,6 @@ class Invoice(models.Model):
     PAYMENT_TERMS = [
         ('CASH', 'Cash'),
         ('CREDIT', 'Credit'),
-        ('PARTIAL', 'Partial (Advance + Balance)'),
     ]
     
     STATUS_CHOICES = [
@@ -651,3 +657,108 @@ class ActivityLog(models.Model):
         else:
             ip = request.META.get('REMOTE_ADDR')
         return ip
+
+
+# ==================== PURCHASE ORDERS ====================
+
+class PurchaseOrder(models.Model):
+    STATUS_CHOICES = [
+        ('DRAFT', 'Draft'),
+        ('ORDERED', 'Ordered'),
+        ('RECEIVED', 'Received'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
+    po_number = models.CharField(max_length=20, unique=True, editable=False, db_index=True)
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name='purchase_orders')
+    order_date = models.DateField(default=timezone.now)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='ORDERED')
+
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    grand_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    notes = models.TextField(blank=True)
+
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='purchase_orders_created')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    received_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-order_date', '-po_number']
+        indexes = [
+            models.Index(fields=['po_number']),
+            models.Index(fields=['order_date']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self):
+        return f"PO {self.po_number}"
+
+    def save(self, *args, **kwargs):
+        if not self.po_number:
+            self.po_number = self.generate_po_number()
+        super().save(*args, **kwargs)
+
+    def generate_po_number(self):
+        """Generate sequential PO number per year."""
+        current_year = timezone.now().year
+        prefix = f"PO{current_year}"
+        last_po = PurchaseOrder.objects.filter(po_number__startswith=prefix).order_by('-po_number').first()
+        if last_po:
+            last_num = int(last_po.po_number.split('-')[1])
+            new_num = last_num + 1
+        else:
+            new_num = 1
+        return f"{prefix}-{new_num:06d}"
+
+    def calculate_totals(self):
+        items = self.items.all()
+        self.subtotal = sum(item.amount for item in items)
+        self.grand_total = self.subtotal - self.discount_amount
+        self.save(update_fields=['subtotal', 'grand_total'])
+
+    def receive(self, user=None):
+        """Mark as received and update inventory."""
+        if self.status == 'RECEIVED' or self.status == 'CANCELLED':
+            return False
+        for item in self.items.all():
+            product = item.product
+            product.stock_qty += item.quantity
+            product.save()
+        self.status = 'RECEIVED'
+        self.received_at = timezone.now()
+        self.save(update_fields=['status', 'received_at'])
+        if user:
+            ActivityLog.log_activity(
+                user=user,
+                action_type='UPDATE',
+                model_name='PurchaseOrder',
+                object_id=self.po_number,
+                description=f'Received PO {self.po_number}'
+            )
+        return True
+
+
+class PurchaseItem(models.Model):
+    purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='items')
+    serial_no = models.PositiveIntegerField()
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, null=True, blank=True)
+    description = models.CharField(max_length=500)
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)])
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['serial_no']
+        unique_together = ['purchase_order', 'serial_no']
+
+    def __str__(self):
+        return f"{self.purchase_order.po_number} - Item {self.serial_no}"
+
+    def save(self, *args, **kwargs):
+        self.amount = self.quantity * self.unit_cost
+        super().save(*args, **kwargs)

@@ -358,6 +358,10 @@
                 <i class="bi bi-boxes"></i>
                 <span>Stock / Inventory</span>
             </a>
+            <a href="{% url 'apps:purchase_orders_list' %}" class="menu-item {% if request.resolver_match.url_name == 'purchase_orders_list' or request.resolver_match.url_name == 'purchase_order_detail' %}active{% endif %}">
+                <i class="bi bi-cart-check"></i>
+                <span>Purchase Orders</span>
+            </a>
             
             <div class="menu-section">Customers & Credit</div>
             <a href="{% url 'apps:customers_list' %}" class="menu-item {% if request.resolver_match.url_name == 'customers_list' or request.resolver_match.url_name == 'customer_create' or request.resolver_match.url_name == 'customer_edit' or request.resolver_match.url_name == 'customer_detail' %}active{% endif %}">

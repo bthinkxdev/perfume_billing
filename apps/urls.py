@@ -3,6 +3,7 @@
 from django.urls import path
 from . import views
 from . import products
+from . import purchases
 from . import customer
 from . import payments
 app_name = 'apps'
@@ -38,6 +39,15 @@ urlpatterns = [
     path('inventory/', products.inventory_list, name='inventory_list'),
     path('inventory/adjust/', products.stock_adjustment, name='stock_adjustment'),
     path('inventory/history/', products.stock_history, name='stock_history'),
+
+    # Purchase Orders (Local PO)
+    path('purchase-orders/', purchases.purchase_orders_list, name='purchase_orders_list'),
+    path('purchase-orders/new/', purchases.purchase_order_new, name='purchase_order_new'),
+    path('purchase-orders/save/', purchases.purchase_order_save, name='purchase_order_save'),
+    path('purchase-orders/<int:pk>/', purchases.purchase_order_detail, name='purchase_order_detail'),
+    path('purchase-orders/<int:pk>/print/', purchases.purchase_order_print, name='purchase_order_print'),
+    path('purchase-orders/<int:pk>/receive/', purchases.purchase_order_receive, name='purchase_order_receive'),
+    path('api/quick-add-supplier/', purchases.quick_add_supplier, name='quick_add_supplier'),
     
     # Brands
     path('brands/', products.brands_list, name='brands_list'),
@@ -54,6 +64,8 @@ urlpatterns = [
     path('customers/<int:pk>/edit/', customer.customer_edit, name='customer_edit'),
     path('customers/<int:pk>/delete/', customer.customer_delete, name='customer_delete'),
     path('customers/<int:pk>/', customer.customer_detail, name='customer_detail'),
+    path('customers/<int:pk>/statement/', customer.customer_statement, name='customer_statement'),
+    path('customers/<int:pk>/statement/print/', customer.customer_statement_print, name='customer_statement_print'),
     
     # Customer Ledger
     path('customer-ledger/', customer.customer_ledger, name='customer_ledger'),
@@ -69,6 +81,8 @@ urlpatterns = [
     path('payments/', payments.payments_list, name='payments_list'),
     path('payments/history/', payments.settlement_history, name='settlement_history'),
     path('payment/<int:pk>/', payments.payment_detail, name='payment_detail'),
+    path('payment/<int:pk>/print/', payments.payment_print, name='payment_print'),
+    path('api/search-invoices/', payments.search_invoices, name='search_invoices'),
     
     # Reports
     path('reports/sales/', payments.sales_report, name='sales_report'),

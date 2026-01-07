@@ -56,10 +56,8 @@
                             <strong>Payment Terms:</strong> 
                             {% if invoice.payment_terms == 'CASH' %}
                                 <span class="badge bg-success">Cash</span>
-                            {% elif invoice.payment_terms == 'CREDIT' %}
-                                <span class="badge bg-warning">Credit</span>
                             {% else %}
-                                <span class="badge bg-info">Partial</span>
+                                <span class="badge bg-warning">Credit</span>
                             {% endif %}
                         </div>
                         <div>

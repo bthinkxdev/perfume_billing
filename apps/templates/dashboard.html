@@ -115,6 +115,19 @@
             </div>
         </div>
     </div>
+
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+                <i class="bi bi-cart-check"></i>
+            </div>
+            <div class="stat-value">₹{{ month_purchases|floatformat:0 }}</div>
+            <div class="stat-label">Purchases (30d)</div>
+            <div class="stat-change text-muted">
+                <i class="bi bi-receipt-cutoff"></i> {{ month_purchase_count }} POs
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Quick Actions -->
@@ -134,6 +147,9 @@
                     </a>
                     <a href="{% url 'apps:products_list' %}" class="btn btn-outline-secondary btn-icon">
                         <i class="bi bi-box-seam"></i> Products
+                    </a>
+                    <a href="{% url 'apps:purchase_orders_list' %}" class="btn btn-outline-dark btn-icon">
+                        <i class="bi bi-cart-check"></i> Purchase Orders
                     </a>
                 </div>
             </div>

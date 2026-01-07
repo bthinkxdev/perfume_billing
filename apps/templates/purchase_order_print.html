@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PO {{ po.po_number }}</title>
+    <style>
+        @page { size: A4 portrait; margin: 10mm; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            margin: 0;
+            background: #fff;
+        }
+        .container {
+            width: 190mm;
+            margin: 0 auto;
+            padding: 6mm 4mm;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 6mm;
+        }
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        .meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4mm;
+            margin-bottom: 6mm;
+        }
+        .box {
+            border: 1px solid #000;
+            padding: 3mm;
+            font-size: 11px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 11px;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 3px 4px;
+            word-break: break-word;
+        }
+        th { background: #f2f2f2; text-align: left; }
+        .text-end { text-align: right; }
+        .totals {
+            margin-top: 4mm;
+            width: 60%;
+            margin-left: auto;
+        }
+        .totals-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            padding: 4px 6px;
+            border: 1px solid #000;
+            border-top: none;
+        }
+        .totals-row:first-child { border-top: 1px solid #000; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">LOCAL PURCHASE ORDER</div>
+            <div style="font-size: 11px; margin-top: 2px;">{{ po.po_number }}</div>
+        </div>
+
+        <div class="meta">
+            <div class="box">
+                <strong>Supplier</strong><br>
+                {{ po.supplier.name }}<br>
+                {% if po.supplier.company_name %}{{ po.supplier.company_name }}<br>{% endif %}
+                {{ po.supplier.phone }}<br>
+            </div>
+            <div class="box">
+                <strong>Details</strong><br>
+                Date: {{ po.order_date|date:"d M Y" }}<br>
+                Status: {{ po.get_status_display }}<br>
+                Created By: {{ po.created_by.get_full_name|default:po.created_by.username }}
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 12mm;">#</th>
+                    <th style="width: 30mm;">SKU</th>
+                    <th>Description</th>
+                    <th style="width: 22mm;" class="text-end">Qty</th>
+                    <th style="width: 25mm;" class="text-end">Unit Cost</th>
+                    <th style="width: 28mm;" class="text-end">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td class="text-end">{{ item.serial_no }}</td>
+                    <td>{{ item.product.sku|default:"-" }}</td>
+                    <td>{{ item.description }}</td>
+                    <td class="text-end">{{ item.quantity }}</td>
+                    <td class="text-end">{{ item.unit_cost|floatformat:2 }}</td>
+                    <td class="text-end"><strong>{{ item.amount|floatformat:2 }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="totals">
+            <div class="totals-row">
+                <span>Subtotal</span>
+                <span class="text-end">{{ po.subtotal|floatformat:2 }}</span>
+            </div>
+            <div class="totals-row">
+                <span>Discount</span>
+                <span class="text-end">-{{ po.discount_amount|floatformat:2 }}</span>
+            </div>
+            <div class="totals-row">
+                <strong>Grand Total</strong>
+                <strong class="text-end">{{ po.grand_total|floatformat:2 }}</strong>
+            </div>
+        </div>
+
+        {% if po.notes %}
+        <div style="margin-top: 4mm; font-size: 11px;">
+            <strong>Notes:</strong><br>
+            {{ po.notes }}
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
+

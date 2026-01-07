@@ -4,11 +4,12 @@ from django.contrib import messages
 from django.db.models import Q, Sum, Count, F, DecimalField
 from django.db.models.functions import Coalesce, TruncDate, TruncMonth
 from django.utils import timezone
+from django.http import JsonResponse
 from datetime import datetime, timedelta
 from decimal import Decimal
 from .models import (
     Invoice, Payment, Product, Customer, InvoiceItem,
-    ActivityLog, StockAdjustment
+    ActivityLog, StockAdjustment, CompanyProfile
 )
 
 # ==================== PAYMENTS ====================
@@ -144,6 +145,61 @@ def payment_detail(request, pk):
         'payment': payment,
     }
     return render(request, 'payment_detail.html', context)
+
+
+@login_required
+def payment_print(request, pk):
+    """A4 receipt for a payment"""
+    payment = get_object_or_404(
+        Payment.objects.select_related('invoice', 'customer'),
+        pk=pk
+    )
+    company = CompanyProfile.get_company()
+    invoice = payment.invoice
+    context = {
+        'payment': payment,
+        'invoice': invoice,
+        'customer': payment.customer,
+        'company': company,
+        'bill_total': invoice.grand_total,
+        'paid_now': payment.amount,
+        'paid_total': invoice.paid_amount,
+        'balance': invoice.balance_due,
+    }
+    return render(request, 'payment_print.html', context)
+
+
+@login_required
+def search_invoices(request):
+    """AJAX search for invoices by number, customer name/id/phone."""
+    try:
+        query = request.GET.get('q', '').strip()
+        invoices = Invoice.objects.filter(status='CONFIRMED', balance_due__gt=0).select_related('customer')
+        if query:
+            invoices = invoices.filter(
+                Q(invoice_number__icontains=query) |
+                Q(customer__name__icontains=query) |
+                Q(customer__customer_id__icontains=query) |
+                Q(customer__phone__icontains=query)
+            )
+        invoices = invoices.order_by('-invoice_date', '-invoice_number')[:20]
+        results = []
+        for inv in invoices:
+            inv_date = inv.invoice_date.strftime('%d %b %Y') if inv.invoice_date else ''
+            results.append({
+                'id': inv.id,
+                'invoice_number': inv.invoice_number,
+                'customer_name': inv.customer.name,
+                'customer_id': inv.customer.customer_id,
+                'customer_phone': inv.customer.phone,
+                'grand_total': float(inv.grand_total),
+                'paid_amount': float(inv.paid_amount),
+                'balance_due': float(inv.balance_due),
+                'invoice_date': inv_date,
+            })
+        return JsonResponse({'success': True, 'invoices': results})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 @login_required

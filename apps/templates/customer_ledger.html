@@ -16,6 +16,37 @@
 {% endblock %}
 
 {% block content %}
+{% block extra_css %}
+<style>
+@page {
+    size: A4 portrait;
+    margin: 10mm;
+}
+@media print {
+    body {
+        background: #fff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .navbar, .sidebar, .footer, .breadcrumb, .btn, .pagination, form .btn, .card-header .btn {
+        display: none !important;
+    }
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ccc !important;
+    }
+    .card-body {
+        padding: 10px !important;
+    }
+    .table {
+        font-size: 11px;
+    }
+    .table th, .table td {
+        padding: 4px 6px !important;
+    }
+}
+</style>
+{% endblock %}
 <!-- Summary Card -->
 <div class="row mb-4">
     <div class="col-md-3">

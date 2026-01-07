@@ -91,6 +91,14 @@
                                    placeholder="0.00">
                             <small class="text-muted">Maximum credit allowed for this customer</small>
                         </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Default Discount (%)</label>
+                            <input type="number" name="discount_percent" class="form-control"
+                                   step="0.01" min="0" max="100"
+                                   value="{% if customer %}{{ customer.discount_percent }}{% else %}0{% endif %}"
+                                   placeholder="0.00">
+                            <small class="text-muted">Applied automatically on invoices for this customer</small>
+                        </div>
 
                         {% if is_edit %}
                         <div class="col-md-6">

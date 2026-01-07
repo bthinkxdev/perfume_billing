@@ -66,6 +66,13 @@ def dashboard(request):
         is_active=True,
         stock_qty__lte=F('reorder_level')
     ).count()
+    # Purchases last 30 days for quick insight
+    from .models import PurchaseOrder
+    month_purchases = PurchaseOrder.objects.filter(
+        order_date__gte=today - timedelta(days=30),
+        status__in=['ORDERED', 'RECEIVED']
+    ).aggregate(total=Sum('grand_total'), count=Count('id'))
+
     recent_invoices = Invoice.objects.filter(
         status='CONFIRMED'
     ).select_related('customer').order_by('-invoice_date')[:10]
@@ -85,6 +92,8 @@ def dashboard(request):
         'today_count': today_sales['count'],
         'month_sales': month_sales['total'] or 0,
         'month_count': month_sales['count'],
+        'month_purchases': month_purchases['total'] or 0,
+        'month_purchase_count': month_purchases['count'],
         'outstanding': outstanding,
         'low_stock': low_stock,
         'recent_invoices': recent_invoices,
@@ -128,14 +137,45 @@ def save_invoice(request):
             temp_subtotal += qty * price
 
         discount = Decimal(data.get('discount_amount', 0))
+        if discount < 0:
+            return JsonResponse({
+                'success': False,
+                'error': 'Discount cannot be negative'
+            }, status=400)
+        if discount > temp_subtotal:
+            return JsonResponse({
+                'success': False,
+                'error': 'Discount cannot exceed subtotal'
+            }, status=400)
         grand_total = temp_subtotal - discount
 
         # ---------- PRE-CHECK CREDIT (BLOCK DRAFT + CONFIRM) ----------
         payment_terms = data['payment_terms']
-        paid_amount = Decimal(data.get('paid_amount', 0))
+        if payment_terms not in ['CASH', 'CREDIT']:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid payment terms. Use CASH or CREDIT.'
+            }, status=400)
+
+        # Normalize paid amount rules
+        if payment_terms == 'CASH':
+            paid_amount = grand_total  # full payment required
+        else:
+            paid_amount = Decimal(data.get('paid_amount', 0))
+            if paid_amount < 0:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Paid amount cannot be negative'
+                }, status=400)
+            if paid_amount > grand_total:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Paid amount cannot exceed grand total'
+                }, status=400)
+
         balance_due = grand_total - paid_amount
 
-        if payment_terms in ['CREDIT', 'PARTIAL'] and balance_due > 0:
+        if payment_terms == 'CREDIT' and balance_due > 0:
             if not customer.can_take_credit(balance_due):
                 return JsonResponse({
                     'success': False,
@@ -281,6 +321,8 @@ def search_customer(request):
         'customer_type': c.customer_type,
         'outstanding_balance': float(c.outstanding_balance),
         'credit_limit': float(c.credit_limit),
+        'available_credit': float(c.get_available_credit()),
+        'discount_percent': float(c.discount_percent),
     } for c in customers]
     print("customer_list :",customer_list)
     return JsonResponse({'customers': customer_list})
@@ -292,6 +334,12 @@ def quick_add_customer(request):
     """Quick add customer via AJAX"""
     try:
         data = json.loads(request.body)
+        discount_percent = Decimal(data.get('discount_percent', 0))
+        if discount_percent < 0 or discount_percent > 100:
+            return JsonResponse({
+                'success': False,
+                'error': 'Discount percentage must be between 0 and 100'
+            }, status=400)
         
         customer = Customer.objects.create(
             name=data['name'],
@@ -300,7 +348,8 @@ def quick_add_customer(request):
             email=data.get('email', ''),
             address=data.get('address', ''),
             customer_type=data.get('customer_type', 'WHOLESALE'),
-            credit_limit=Decimal(data.get('credit_limit', 0))
+            credit_limit=Decimal(data.get('credit_limit', 0)),
+            discount_percent=discount_percent
         )
         
         return JsonResponse({
@@ -311,7 +360,9 @@ def quick_add_customer(request):
                 'name': customer.name,
                 'display_name': customer.name or customer.phone or customer.customer_id,
                 'phone': customer.phone,
-                'customer_type': customer.customer_type
+                'customer_type': customer.customer_type,
+                'available_credit': float(customer.get_available_credit()),
+                'discount_percent': float(customer.discount_percent),
             }
         })
         
@@ -482,7 +533,7 @@ def confirm_draft_invoice(request, invoice_id):
         })
 
     # Credit check (same as save_invoice)
-    if invoice.payment_terms in ['CREDIT', 'PARTIAL'] and invoice.balance_due > 0:
+    if invoice.payment_terms == 'CREDIT' and invoice.balance_due > 0:
         customer = invoice.customer
         if not customer.can_take_credit(invoice.balance_due):
             return JsonResponse({

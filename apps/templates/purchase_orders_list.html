@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block title %}Purchase Orders{% endblock %}
+{% block page_title %}Local Purchase Orders{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'apps:dashboard' %}">Home</a></li>
+<li class="breadcrumb-item active">Purchase Orders</li>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-3">
+    <div class="card-body">
+        <form class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All</option>
+                    <option value="ORDERED" {% if selected_status == 'ORDERED' %}selected{% endif %}>Ordered</option>
+                    <option value="RECEIVED" {% if selected_status == 'RECEIVED' %}selected{% endif %}>Received</option>
+                    <option value="CANCELLED" {% if selected_status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+                    <option value="DRAFT" {% if selected_status == 'DRAFT' %}selected{% endif %}>Draft</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Supplier</label>
+                <select name="supplier" class="form-select">
+                    <option value="">All</option>
+                    {% for s in suppliers %}
+                    <option value="{{ s.id }}" {% if selected_supplier == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">From</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">To</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end gap-2">
+                <button class="btn btn-primary w-100" type="submit"><i class="bi bi-filter"></i> Filter</button>
+                <a href="{% url 'apps:purchase_orders_list' %}" class="btn btn-secondary"><i class="bi bi-x"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h6 class="mb-0 text-muted">Total: {{ orders|length }} POs</h6>
+    <a href="{% url 'apps:purchase_order_new' %}" class="btn btn-primary btn-icon"><i class="bi bi-plus-circle"></i> New PO</a>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>PO #</th>
+                        <th>Supplier</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th class="text-end">Subtotal</th>
+                        <th class="text-end">Discount</th>
+                        <th class="text-end">Grand Total</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for po in orders %}
+                    <tr>
+                        <td><strong>{{ po.po_number }}</strong></td>
+                        <td>{{ po.supplier.name }}</td>
+                        <td>{{ po.order_date|date:"d M Y" }}</td>
+                        <td>
+                            {% if po.status == 'RECEIVED' %}
+                            <span class="badge bg-success">Received</span>
+                            {% elif po.status == 'CANCELLED' %}
+                            <span class="badge bg-danger">Cancelled</span>
+                            {% elif po.status == 'DRAFT' %}
+                            <span class="badge bg-secondary">Draft</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Ordered</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">₹{{ po.subtotal|floatformat:2 }}</td>
+                        <td class="text-end">₹{{ po.discount_amount|floatformat:2 }}</td>
+                        <td class="text-end fw-bold">₹{{ po.grand_total|floatformat:2 }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'apps:purchase_order_detail' po.id %}" class="btn btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
+                                <a href="{% url 'apps:purchase_order_print' po.id %}" target="_blank" class="btn btn-outline-dark" title="Print"><i class="bi bi-printer"></i></a>
+                                {% if po.status != 'RECEIVED' and po.status != 'CANCELLED' %}
+                                <button class="btn btn-outline-success" onclick="receivePO({{ po.id }})" title="Mark Received"><i class="bi bi-check2-circle"></i></button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                            <div>No purchase orders found</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function receivePO(id) {
+    if (!confirm('Mark this PO as received and update stock?')) return;
+    fetch(`{% url 'apps:purchase_order_receive' 0 %}`.replace('0', id), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    }).then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert('PO received');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+}
+</script>
+{% endblock %}
+

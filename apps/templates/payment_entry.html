@@ -9,6 +9,17 @@
 <li class="breadcrumb-item active">Payment Entry</li>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+.invoice-results {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    background: #fff;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-8">
@@ -21,22 +32,11 @@
                     {% csrf_token %}
                     
                     <!-- Invoice Selection -->
-                    <div class="mb-3">
+                    <div class="mb-3 position-relative">
                         <label class="form-label">Select Invoice <span class="text-danger">*</span></label>
-                        <select name="invoice" id="invoiceSelect" class="form-select" required onchange="updateInvoiceInfo()">
-                            <option value="">Choose invoice...</option>
-                            {% for inv in outstanding_invoices %}
-                            <option value="{{ inv.id }}" 
-                                    data-customer="{{ inv.customer.name }}"
-                                    data-customer-id="{{ inv.customer.customer_id }}"
-                                    data-balance="{{ inv.balance_due }}"
-                                    data-total="{{ inv.grand_total }}"
-                                    data-paid="{{ inv.paid_amount }}"
-                                    {% if invoice and invoice.id == inv.id %}selected{% endif %}>
-                                {{ inv.invoice_number }} - {{ inv.customer.name }} - Balance: {{ inv.balance_due|floatformat:2 }}
-                            </option>
-                            {% endfor %}
-                        </select>
+                        <input type="hidden" name="invoice" id="invoiceId" value="{% if invoice %}{{ invoice.id }}{% endif %}">
+                        <input type="text" id="invoiceSearch" class="form-control" placeholder="Search by invoice no, customer name, phone..." autocomplete="off">
+                        <div id="invoiceResults" class="list-group position-absolute w-100 invoice-results" style="z-index:1000; max-height: 260px; overflow:auto; display:none;"></div>
                     </div>
 
                     <!-- Invoice Info Display -->
@@ -143,32 +143,93 @@
 {% block extra_js %}
 <script>
 let currentBalance = 0;
+let searchTimeout = null;
 
-function updateInvoiceInfo() {
-    const select = document.getElementById('invoiceSelect');
-    const option = select.options[select.selectedIndex];
-    
-    if (option.value) {
-        // Update info display
-        document.getElementById('customerName').textContent = option.getAttribute('data-customer');
-        document.getElementById('customerId').textContent = option.getAttribute('data-customer-id');
-        document.getElementById('invoiceTotal').textContent = parseFloat(option.getAttribute('data-total')).toFixed(2);
-        document.getElementById('paidAmount').textContent = parseFloat(option.getAttribute('data-paid')).toFixed(2);
-        document.getElementById('balanceDue').textContent = parseFloat(option.getAttribute('data-balance')).toFixed(2);
-        
-        currentBalance = parseFloat(option.getAttribute('data-balance'));
-        
-        // Update amount input max
-        document.getElementById('amountInput').max = currentBalance;
-        
-        // Show info
-        document.getElementById('invoiceInfo').style.display = 'block';
-        document.getElementById('quickAmounts').style.display = 'block';
-    } else {
-        document.getElementById('invoiceInfo').style.display = 'none';
-        document.getElementById('quickAmounts').style.display = 'none';
+function renderInvoiceResults(invoices) {
+    const resultsDiv = document.getElementById('invoiceResults');
+    if (!invoices.length) {
+        resultsDiv.innerHTML = `<div class="list-group-item text-muted">No invoices found</div>`;
+        resultsDiv.style.display = 'block';
+        return;
     }
+    resultsDiv.innerHTML = invoices.map(inv => `
+        <button type="button" class="list-group-item list-group-item-action"
+            data-id="${inv.id}"
+            data-customer="${inv.customer_name}"
+            data-customer-id="${inv.customer_id}"
+            data-total="${inv.grand_total}"
+            data-paid="${inv.paid_amount}"
+            data-balance="${inv.balance_due}">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <div class="fw-bold">${inv.invoice_number}</div>
+                    <div class="text-muted small">${inv.customer_name} • ${inv.customer_id} • ${inv.customer_phone}</div>
+                </div>
+                <div class="text-end">
+                    <div class="text-danger fw-bold">Balance: ${parseFloat(inv.balance_due).toFixed(2)}</div>
+                    <div class="small text-muted">Total: ${parseFloat(inv.grand_total).toFixed(2)} | Paid: ${parseFloat(inv.paid_amount).toFixed(2)}</div>
+                </div>
+            </div>
+        </button>
+    `).join('');
+    resultsDiv.style.display = 'block';
 }
+
+function selectInvoiceFromResult(btn) {
+    const id = btn.getAttribute('data-id');
+    const customer = btn.getAttribute('data-customer');
+    const customerId = btn.getAttribute('data-customer-id');
+    const total = parseFloat(btn.getAttribute('data-total'));
+    const paid = parseFloat(btn.getAttribute('data-paid'));
+    const balance = parseFloat(btn.getAttribute('data-balance'));
+
+    document.getElementById('invoiceId').value = id;
+    document.getElementById('invoiceSearch').value = `${customer} (${customerId})`;
+
+    document.getElementById('customerName').textContent = customer;
+    document.getElementById('customerId').textContent = customerId;
+    document.getElementById('invoiceTotal').textContent = total.toFixed(2);
+    document.getElementById('paidAmount').textContent = paid.toFixed(2);
+    document.getElementById('balanceDue').textContent = balance.toFixed(2);
+
+    currentBalance = balance;
+    document.getElementById('amountInput').max = currentBalance;
+    document.getElementById('invoiceInfo').style.display = 'block';
+    document.getElementById('quickAmounts').style.display = 'block';
+    document.getElementById('invoiceResults').style.display = 'none';
+}
+
+function searchInvoices(query) {
+    fetch(`{% url 'apps:search_invoices' %}?q=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                renderInvoiceResults(data.invoices);
+            } else {
+                document.getElementById('invoiceResults').innerHTML = `<div class="list-group-item text-danger">Error searching</div>`;
+                document.getElementById('invoiceResults').style.display = 'block';
+            }
+        });
+}
+
+document.getElementById('invoiceSearch').addEventListener('input', function() {
+    const q = this.value.trim();
+    document.getElementById('invoiceId').value = '';
+    document.getElementById('invoiceInfo').style.display = 'none';
+    document.getElementById('quickAmounts').style.display = 'none';
+    if (searchTimeout) clearTimeout(searchTimeout);
+    if (!q) {
+        document.getElementById('invoiceResults').style.display = 'none';
+        return;
+    }
+    searchTimeout = setTimeout(() => searchInvoices(q), 300);
+});
+
+document.getElementById('invoiceResults').addEventListener('click', function(e) {
+    if (e.target.closest('.list-group-item')) {
+        selectInvoiceFromResult(e.target.closest('.list-group-item'));
+    }
+});
 
 function validateAmount() {
     const amount = parseFloat(document.getElementById('amountInput').value);
@@ -200,13 +261,20 @@ function setQuickAmount(type) {
 
 // Initialize if invoice is pre-selected
 document.addEventListener('DOMContentLoaded', function() {
-    if (document.getElementById('invoiceSelect').value) {
-        updateInvoiceInfo();
+    const hiddenId = document.getElementById('invoiceId').value;
+    if (hiddenId) {
+        // If server passed invoice context, info is already filled in template
+        currentBalance = parseFloat(document.getElementById('balanceDue').textContent || 0) || 0;
     }
 });
 
 // Validate on form submit
 document.getElementById('paymentForm').addEventListener('submit', function(e) {
+    if (!document.getElementById('invoiceId').value) {
+        e.preventDefault();
+        alert('Please select an invoice');
+        return;
+    }
     if (!validateAmount()) {
         e.preventDefault();
         alert('Please enter a valid payment amount');

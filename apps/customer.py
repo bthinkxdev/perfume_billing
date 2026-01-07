@@ -9,6 +9,7 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
 from django.db.models import Min
+from datetime import datetime
 from .models import (
     Customer, Invoice, Payment, InvoiceItem, 
     ActivityLog, Product
@@ -16,6 +17,17 @@ from .models import (
 
 
 # ==================== CUSTOMERS ====================
+
+def _parse_discount_percent(raw_value):
+    """Validate and parse discount percent (0-100)."""
+    try:
+        value = Decimal(raw_value or 0)
+    except Exception:
+        raise ValueError('Discount percentage must be a number')
+    if value < 0 or value > 100:
+        raise ValueError('Discount percentage must be between 0 and 100')
+    return value
+
 
 @login_required
 def customers_list(request):
@@ -89,6 +101,7 @@ def customer_create(request):
     """Create new customer"""
     if request.method == 'POST':
         try:
+            discount_percent = _parse_discount_percent(request.POST.get('discount_percent'))
             customer = Customer.objects.create(
                 customer_type=request.POST.get('customer_type'),
                 name=request.POST.get('name'),
@@ -96,7 +109,8 @@ def customer_create(request):
                 address=request.POST.get('address', ''),
                 phone=request.POST.get('phone'),
                 email=request.POST.get('email', ''),
-                credit_limit=Decimal(request.POST.get('credit_limit', 0))
+                credit_limit=Decimal(request.POST.get('credit_limit', 0)),
+                discount_percent=discount_percent,
             )
             
             # Log activity
@@ -128,6 +142,7 @@ def customer_edit(request, pk):
     
     if request.method == 'POST':
         try:
+            discount_percent = _parse_discount_percent(request.POST.get('discount_percent'))
             customer.customer_type = request.POST.get('customer_type')
             customer.name = request.POST.get('name')
             customer.company_name = request.POST.get('company_name', '')
@@ -135,6 +150,7 @@ def customer_edit(request, pk):
             customer.phone = request.POST.get('phone')
             customer.email = request.POST.get('email', '')
             customer.credit_limit = Decimal(request.POST.get('credit_limit', 0))
+            customer.discount_percent = discount_percent
             customer.is_active = request.POST.get('is_active') == 'on'
             customer.save()
             
@@ -308,7 +324,7 @@ def customer_ledger(request, pk=None):
         # Combine and sort by date
         for invoice in invoices:
             # Only raise receivable for credit/partial terms and for outstanding amount
-            due_amount = invoice.balance_due if invoice.payment_terms in ['CREDIT', 'PARTIAL'] else Decimal('0.00')
+            due_amount = invoice.balance_due if invoice.payment_terms == 'CREDIT' else Decimal('0.00')
             if due_amount <= 0:
                 continue  # Cash invoices (or fully paid) shouldn't impact customer balance
             
@@ -375,6 +391,117 @@ def customer_ledger(request, pk=None):
         'net_balance': net_balance,
     }
     return render(request, 'customer_ledger.html', context)
+
+
+# ==================== CUSTOMER STATEMENT ====================
+
+def _parse_date(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except Exception:
+        return None
+
+
+def _build_customer_statement(customer, date_from, date_to):
+    """Return statement data with opening, entries, totals."""
+    invoices = customer.invoices.filter(status='CONFIRMED')
+    payments = customer.payments.all()
+
+    # Filter by date range and capture opening balance
+    entries = []
+    opening_balance = Decimal('0.00')
+
+    for invoice in invoices:
+        entry_date = invoice.invoice_date
+        amount = invoice.grand_total
+
+        in_range = ((not date_from or entry_date >= date_from) and
+                    (not date_to or entry_date <= date_to))
+        if in_range:
+            entries.append({
+                'date': entry_date,
+                'type': 'INVOICE',
+                'reference': invoice.invoice_number,
+                'description': f'Invoice - {invoice.payment_terms}',
+                'debit': amount,
+                'credit': Decimal('0.00'),
+            })
+        elif date_from and entry_date < date_from:
+            opening_balance += amount
+
+    for payment in payments:
+        entry_date = payment.payment_date
+        amount = payment.amount
+
+        in_range = ((not date_from or entry_date >= date_from) and
+                    (not date_to or entry_date <= date_to))
+        if in_range:
+            entries.append({
+                'date': entry_date,
+                'type': 'PAYMENT',
+                'reference': payment.payment_id,
+                'description': f'Payment - {payment.get_payment_method_display()}',
+                'debit': Decimal('0.00'),
+                'credit': amount,
+            })
+        elif date_from and entry_date < date_from:
+            opening_balance -= amount
+
+    entries.sort(key=lambda e: e['date'])
+
+    total_debit = sum(e['debit'] for e in entries)
+    total_credit = sum(e['credit'] for e in entries)
+    closing_balance = opening_balance + total_debit - total_credit
+
+    return {
+        'opening_balance': opening_balance,
+        'entries': entries,
+        'total_debit': total_debit,
+        'total_credit': total_credit,
+        'closing_balance': closing_balance,
+    }
+
+
+@login_required
+def customer_statement(request, pk):
+    """Customer statement with date filters and print link"""
+    customer = get_object_or_404(Customer, pk=pk)
+    date_from_raw = request.GET.get('date_from')
+    date_to_raw = request.GET.get('date_to')
+    date_from = _parse_date(date_from_raw)
+    date_to = _parse_date(date_to_raw)
+
+    statement = _build_customer_statement(customer, date_from, date_to)
+
+    context = {
+        'customer': customer,
+        'date_from': date_from_raw or '',
+        'date_to': date_to_raw or '',
+        **statement,
+    }
+    return render(request, 'customer_statement.html', context)
+
+
+@login_required
+def customer_statement_print(request, pk):
+    """Print-friendly customer statement"""
+    customer = get_object_or_404(Customer, pk=pk)
+    date_from_raw = request.GET.get('date_from')
+    date_to_raw = request.GET.get('date_to')
+    date_from = _parse_date(date_from_raw)
+    date_to = _parse_date(date_to_raw)
+
+    statement = _build_customer_statement(customer, date_from, date_to)
+
+    context = {
+        'customer': customer,
+        'date_from': date_from_raw or '',
+        'date_to': date_to_raw or '',
+        **statement,
+    }
+    return render(request, 'customer_statement_print.html', context)
 
 
 # ==================== OUTSTANDING ====================
@@ -617,6 +744,7 @@ def ajax_customer_search(request):
         'outstanding_balance': float(c.outstanding_balance),
         'credit_limit': float(c.credit_limit),
         'available_credit': float(c.get_available_credit()),
+        'discount_percent': float(c.discount_percent),
     } for c in customers]
     
     return JsonResponse({'results': results})
@@ -644,6 +772,7 @@ def ajax_customer_by_phone(request):
                 'outstanding_balance': float(customer.outstanding_balance),
                 'credit_limit': float(customer.credit_limit),
                 'available_credit': float(customer.get_available_credit()),
+                'discount_percent': float(customer.discount_percent),
             }
         })
     except Customer.DoesNotExist:

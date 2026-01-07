@@ -156,6 +156,9 @@
                     <a href="{% url 'apps:customer_detail' payment.customer.id %}" class="btn btn-outline-info">
                         <i class="bi bi-person"></i> View Customer
                     </a>
+                    <a href="{% url 'apps:payment_print' payment.id %}" target="_blank" class="btn btn-dark">
+                        <i class="bi bi-printer"></i> Print Receipt
+                    </a>
                     <a href="{% url 'apps:payments_list' %}" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left"></i> Back to Payments
                     </a>

@@ -12,30 +12,40 @@
             box-sizing: border-box;
         }
         
+        @page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
+        
         body {
             font-family: Arial, sans-serif;
-            padding: 20px;
             font-size: 12px;
+            background: #f8f9fb;
+            display: flex;
+            justify-content: center;
         }
         
         .invoice-container {
-            max-width: 800px;
-            margin: 0 auto;
-            border: 2px solid #000;
-            padding: 20px;
+            width: 190mm;
+            min-height: 270mm;
+            margin: 10mm auto;
+            border: 1px solid #000;
+            padding: 12mm;
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
         
         .header {
             text-align: center;
-            border-bottom: 2px solid #000;
-            padding-bottom: 15px;
-            margin-bottom: 15px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
         }
         
         .company-name {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
         }
         
         .company-details {
@@ -47,19 +57,20 @@
             background: #000;
             color: #fff;
             text-align: center;
-            padding: 8px;
-            font-size: 18px;
+            padding: 6px;
+            font-size: 16px;
             font-weight: bold;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
         }
         
         .invoice-meta {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 15px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #ddd;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 16px;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #999;
         }
         
         .meta-section h4 {
@@ -80,13 +91,14 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
+            table-layout: fixed;
         }
         
         table th {
             background: #f5f5f5;
             border: 1px solid #000;
-            padding: 8px;
+            padding: 6px;
             text-align: left;
             font-weight: bold;
             font-size: 11px;
@@ -94,8 +106,9 @@
         
         table td {
             border: 1px solid #000;
-            padding: 6px 8px;
+            padding: 5px 6px;
             font-size: 11px;
+            word-break: break-word;
         }
         
         .text-right {
@@ -107,7 +120,7 @@
         }
         
         .totals-section {
-            width: 300px;
+            width: 260px;
             margin-left: auto;
         }
         
@@ -122,39 +135,51 @@
             background: #000;
             color: #fff;
             font-weight: bold;
-            font-size: 16px;
-            margin-top: 5px;
+            font-size: 14px;
+            margin-top: 4px;
         }
         
         .footer {
-            margin-top: 30px;
-            padding-top: 15px;
+            margin-top: 24px;
+            padding-top: 12px;
             border-top: 1px solid #000;
             text-align: center;
-            font-size: 11px;
+            font-size: 10px;
         }
         
         .signatures {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            margin-top: 50px;
+            margin-top: 28px;
             text-align: center;
+            gap: 12px;
         }
         
         .signature-line {
             border-top: 1px solid #000;
-            padding-top: 5px;
-            margin: 0 20px;
+            padding-top: 6px;
+            margin: 0 10px;
         }
         
         @media print {
             body {
-                padding: 0;
+                background: #fff;
+                margin: 0;
             }
             
             .no-print {
                 display: none;
             }
+            
+            .invoice-container {
+                margin: 0;
+                box-shadow: none;
+                border: 1px solid #000;
+            }
+            
+            thead { display: table-header-group; }
+            tfoot { display: table-row-group; }
+            tr { page-break-inside: avoid; }
         }
     </style>
 </head>

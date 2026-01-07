@@ -31,6 +31,9 @@
                     <a href="{% url 'apps:customer_ledger_detail' customer.id %}" class="btn btn-sm btn-info">
                         <i class="bi bi-journal-text"></i> Ledger
                     </a>
+                    <a href="{% url 'apps:customer_statement' customer.id %}" class="btn btn-sm btn-dark">
+                        <i class="bi bi-file-earmark-text"></i> Statement
+                    </a>
                 </div>
             </div>
             <div class="card-body">
@@ -209,6 +212,13 @@
                     <div class="d-flex justify-content-between mb-1">
                         <span class="text-muted">Credit Limit</span>
                         <strong>{{ customer.credit_limit|floatformat:2 }}</strong>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Default Discount</span>
+                        <strong>{{ customer.discount_percent|floatformat:2 }}%</strong>
                     </div>
                 </div>
                 
