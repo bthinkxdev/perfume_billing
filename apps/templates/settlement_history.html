@@ -155,15 +155,22 @@
                         <td>{{ customer.invoice_count }}</td>
                         <td>{{ customer.payment_count }}</td>
                         <td>
-                            {% widthratio customer.total_paid customer.total_sales 100 as collection_pct %}
                             <div class="progress" style="height: 20px;">
-                                <div class="progress-bar {% if collection_pct >= 80 %}bg-success{% elif collection_pct >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
-                                     role="progressbar" 
-                                     style="width: {{ collection_pct }}%">
-                                    {{ collection_pct }}%
+                                <div class="progress-bar
+                                    {% if customer.collection_pct >= 80 %}
+                                        bg-success
+                                    {% elif customer.collection_pct >= 50 %}
+                                        bg-warning
+                                    {% else %}
+                                        bg-danger
+                                    {% endif %}"
+                                    role="progressbar"
+                                    style="width: {{ customer.collection_pct }}%;">
+                                    {{ customer.collection_pct }}%
                                 </div>
                             </div>
                         </td>
+
                         <td>
                             <a href="{% url 'apps:customer_ledger_detail' customer.id %}" 
                                class="btn btn-sm btn-outline-primary">

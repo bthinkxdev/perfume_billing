@@ -6,7 +6,7 @@ from django.db.models.functions import Coalesce, TruncDate, TruncMonth
 from django.utils import timezone
 from django.http import JsonResponse
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from .models import (
     Invoice, Payment, Product, Customer, InvoiceItem,
     ActivityLog, StockAdjustment, CompanyProfile
@@ -217,7 +217,10 @@ def settlement_history(request):
             output_field=DecimalField()
         ),
         total_paid=Coalesce(
-            Sum('payments__amount'),
+            Sum(
+                'invoices__paid_amount',
+                filter=Q(invoices__status='CONFIRMED')
+            ),
             Decimal('0.00'),
             output_field=DecimalField()
         ),
@@ -247,7 +250,19 @@ def settlement_history(request):
         total_outstanding=Coalesce(Sum('outstanding_balance'), Decimal('0.00')),
     )
     summary['total_collected'] = summary['total_sales'] - summary['total_outstanding']
-   
+
+    for customer in customers:
+        if customer.total_sales and customer.total_sales > 0:
+            pct = (customer.total_paid / customer.total_sales) * Decimal('100')
+            customer.collection_pct = pct.quantize(
+                Decimal('1'), rounding=ROUND_HALF_UP
+            )
+        else:
+            customer.collection_pct = Decimal('0')
+
+        # Safety clamp (never exceed 100%)
+        if customer.collection_pct > 100:
+            customer.collection_pct = Decimal('100')
     context = {
         'customers': customers,
         'summary': summary,
