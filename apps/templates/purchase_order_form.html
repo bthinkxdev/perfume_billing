@@ -207,10 +207,6 @@ function submitPO() {
         return;
     }
 
-    productIds.forEach(v => formData.append('product_id', v));
-    quantities.forEach(v => formData.append('quantity', v));
-    costs.forEach(v => formData.append('unit_cost', v));
-    descriptions.forEach(v => formData.append('description', v));
 
     fetch('{% url "apps:purchase_order_save" %}', {
         method: 'POST',
