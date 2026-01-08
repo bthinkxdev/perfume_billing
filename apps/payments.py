@@ -156,6 +156,10 @@ def payment_print(request, pk):
     )
     company = CompanyProfile.get_company()
     invoice = payment.invoice
+    # Refresh invoice from DB to get updated balance_due
+    if invoice:
+        from django.db import transaction
+        invoice = type(invoice).objects.get(pk=invoice.pk)
     context = {
         'payment': payment,
         'invoice': invoice,

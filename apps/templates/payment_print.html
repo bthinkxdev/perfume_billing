@@ -64,7 +64,7 @@
             <div class="box">
                 <strong>Amounts</strong><br>
                 Paid Now: {{ paid_now|floatformat:2 }}<br>
-                Total Paid (after this): {{ paid_total|floatformat:2 }}<br>
+                {% comment %} Total Paid (after this): {{ paid_total|floatformat:2 }}<br> {% endcomment %}
                 Balance Due: {{ balance|floatformat:2 }}<br>
             </div>
         </div>
@@ -93,10 +93,10 @@
                 <span>Paid Now</span>
                 <span class="text-end">{{ paid_now|floatformat:2 }}</span>
             </div>
-            <div class="totals-row">
+            {% comment %} <div class="totals-row">
                 <span>Total Paid to Date</span>
                 <span class="text-end">{{ paid_total|floatformat:2 }}</span>
-            </div>
+            </div> {% endcomment %}
             <div class="totals-row">
                 <strong>Balance Due</strong>
                 <strong class="text-end">{{ balance|floatformat:2 }}</strong>
