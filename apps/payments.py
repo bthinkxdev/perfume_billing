@@ -243,11 +243,11 @@ def settlement_history(request):
     
     # Summary
     summary = customers.aggregate(
-        total_sales=Sum('total_sales'),
-        total_paid=Sum('total_paid'),
-        total_outstanding=Sum('outstanding_balance')
+        total_sales=Coalesce(Sum('invoices__grand_total', filter=Q(invoices__status='CONFIRMED')), Decimal('0.00')),
+        total_outstanding=Coalesce(Sum('outstanding_balance'), Decimal('0.00')),
     )
-    
+    summary['total_collected'] = summary['total_sales'] - summary['total_outstanding']
+   
     context = {
         'customers': customers,
         'summary': summary,
