@@ -359,8 +359,11 @@ def quick_add_customer(request):
                 'customer_id': customer.customer_id,
                 'name': customer.name,
                 'display_name': customer.name or customer.phone or customer.customer_id,
+                'company_name': customer.company_name,
                 'phone': customer.phone,
                 'customer_type': customer.customer_type,
+                'outstanding_balance': float(customer.outstanding_balance),
+                'credit_limit': float(customer.credit_limit),
                 'available_credit': float(customer.get_available_credit()),
                 'discount_percent': float(customer.discount_percent),
             }
