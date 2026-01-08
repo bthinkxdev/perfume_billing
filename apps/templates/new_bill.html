@@ -727,21 +727,30 @@ function addItem(product) {
     const price = selectedCustomer && selectedCustomer.customer_type === 'WHOLESALE' 
                   ? product.wholesale_price 
                   : product.retail_price;
-    
+    //  Check if product already exists in items
+    const existingItem = items.find(
+        item => item.product_id === product.id
+    );
+
+    if (existingItem) {
+        //  Increment quantity
+        existingItem.quantity += 1;
+        existingItem.amount = existingItem.quantity * existingItem.unit_price;
+    } else {
+        // ➕ Add new item
     itemCounter++;
-    const item = {
-        id: itemCounter,
-        product_id: product.id,
-        barcode: product.barcode,
-        sku: product.sku,
-        description: product.description,
-        quantity: 1,
-        unit_price: price,
-        amount: price,
-        stock_qty: product.stock_qty
-    };
+     items.push({
+            id: itemCounter,
+            product_id: product.id,
+            barcode: product.barcode,
+            sku: product.sku,
+            description: product.description,
+            quantity: 1,
+            unit_price: price,
+            amount: price,
+            stock_qty: product.stock_qty
+        });
     
-    items.push(item);
     renderItems();
     calculateTotals();
     $('#barcodeInput').focus();
