@@ -724,22 +724,21 @@ function searchProduct(query) {
 }
 
 function addItem(product) {
-    const price = selectedCustomer && selectedCustomer.customer_type === 'WHOLESALE' 
-                  ? product.wholesale_price 
-                  : product.retail_price;
+    const price =
+        selectedCustomer && selectedCustomer.customer_type === 'WHOLESALE' ? product.wholesale_price : product.retail_price;
+
     //  Check if product already exists in items
     const existingItem = items.find(
         item => item.product_id === product.id
     );
-
     if (existingItem) {
         //  Increment quantity
         existingItem.quantity += 1;
         existingItem.amount = existingItem.quantity * existingItem.unit_price;
     } else {
-        // ➕ Add new item
-    itemCounter++;
-     items.push({
+        //  Add new item
+        itemCounter++;
+        items.push({
             id: itemCounter,
             product_id: product.id,
             barcode: product.barcode,
@@ -750,11 +749,12 @@ function addItem(product) {
             amount: price,
             stock_qty: product.stock_qty
         });
-    
+    }
     renderItems();
     calculateTotals();
     $('#barcodeInput').focus();
 }
+
 
 function renderItems() {
     const tbody = $('#itemsBody');
