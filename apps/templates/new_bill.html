@@ -439,6 +439,18 @@
                         <div class="invalid-feedback" id="quickCustomerDiscountError"></div>
                         <small class="text-muted">Applied automatically on new bills for this customer.</small>
                     </div>
+                    <div class="mb-3" id="quickCreditLimitDiv" style="display:none;">
+                        <label class="form-label">Credit Limit</label>
+                        <input type="number"
+                            class="form-control"
+                            id="quickCustomerCreditLimit"
+                            value="0"
+                            min="0"
+                            step="0.01">
+                        <small class="text-muted">Only applicable for wholesale customers</small>
+                        <div class="invalid-feedback" id="quickCustomerCreditLimitError"></div>
+                    </div>
+
                 </form>
             </div>
             <div class="modal-footer">
@@ -463,6 +475,17 @@ let scanBuffer = '';
 let scanStartTime = null;
 let scanLastTime = 0;
 
+function toggleQuickCustomerCreditLimit() {
+    const type = $('#quickCustomerType').val();
+
+    if (type === 'WHOLESALE') {
+        $('#quickCreditLimitDiv').slideDown(150);
+    } else {
+        $('#quickCreditLimitDiv').slideUp(150);
+        $('#quickCustomerCreditLimit').val(0);
+        setFieldError('quickCustomerCreditLimit', '');
+    }
+}
 // CSRF Token
 function getCookie(name) {
     let cookieValue = null;
@@ -921,10 +944,15 @@ function saveBill(confirm) {
 function showQuickAddCustomer() {
     $('#quickAddCustomerForm')[0].reset();
     phoneExists = false;
+
     setFieldError('quickCustomerName', '');
     setFieldError('quickCustomerPhone', '');
     setFieldError('quickCustomerCompany', '');
     setFieldError('quickCustomerDiscount', '');
+    setFieldError('quickCustomerCreditLimit', '');
+
+    toggleQuickCustomerCreditLimit(); 
+    $('#quickCustomerType').on('change', toggleQuickCustomerCreditLimit);
     $('#quickAddCustomerModal').modal('show');
 }
 
@@ -939,12 +967,28 @@ function saveQuickCustomer() {
         return;
     }
 
+
+    const creditLimit = parseFloat($('#quickCustomerCreditLimit').val());
+
+    if ($('#quickCustomerType').val() === 'WHOLESALE') {
+        if (isNaN(creditLimit) || creditLimit < 0) {
+            setFieldError('quickCustomerCreditLimit', 'Enter a valid credit limit');
+            valid = false;
+        } else {
+            setFieldError('quickCustomerCreditLimit', '');
+        }
+    }
+
     const data = {
         name: $('#quickCustomerName').val(),
         phone: $('#quickCustomerPhone').val(),
         company_name: $('#quickCustomerCompany').val(),
         customer_type: $('#quickCustomerType').val(),
-        discount_percent: parseFloat($('#quickCustomerDiscount').val() || '0')
+        discount_percent: parseFloat($('#quickCustomerDiscount').val() || '0'),
+        credit_limit:
+            $('#quickCustomerType').val() === 'WHOLESALE'
+                ? parseFloat($('#quickCustomerCreditLimit').val() || '0')
+                : 0
     };
     
     $.ajax({
