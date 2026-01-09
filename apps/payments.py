@@ -290,7 +290,7 @@ def sales_report(request):
     # Parse dates
     date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
     date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
-    
+    company = CompanyProfile.get_company()
     # Base query
     invoices = Invoice.objects.filter(
         status='CONFIRMED',
@@ -386,6 +386,7 @@ def sales_report(request):
         'date_to': date_to,
         'customer_type': customer_type,
         'customer_types': Customer.CUSTOMER_TYPE_CHOICES,
+        'company': company,
     }
     return render(request, 'sales_report.html', context)
 
@@ -419,7 +420,7 @@ def product_report(request):
                            distinct=True),
         stock_value=F('stock_qty') * F('cost_price')
     )
-    
+    company = CompanyProfile.get_company()
     # Apply filters
     if search:
         products = products.filter(
@@ -497,5 +498,6 @@ def product_report(request):
         'stock_status': stock_status,
         'date_from': date_from,
         'date_to': date_to,
+        'company' : company
     }
     return render(request, 'product_report.html', context)
