@@ -26,19 +26,19 @@ def _safe_products_queryset(
     cleaned_products: List[tuple] = []
 
     def _evaluate(qs):
-        # Evaluate a single row to hit converters without loading everything
-        list(qs[:1])
+        # Evaluate entire queryset once to surface any bad decimals before use
+        return list(qs)
 
     try:
         qs = qs_builder()
-        _evaluate(qs)
-        return qs, cleaned_products
+        evaluated = _evaluate(qs)
+        return evaluated, cleaned_products
     except InvalidOperation:
         cleaned_products = Product.sanitize_decimal_fields()
         qs = qs_builder()
 
         # One more attempt; if it still fails, let it propagate
-        _evaluate(qs)
+        evaluated = _evaluate(qs)
 
         if request and cleaned_products:
             fixed_skus = ", ".join([sku for _, sku, _ in cleaned_products][:5])
@@ -48,7 +48,7 @@ def _safe_products_queryset(
                 f"{fixed_skus}" + (" ..." if len(cleaned_products) > 5 else "")
             )
 
-        return qs, cleaned_products
+        return evaluated, cleaned_products
 
 
 # ==================== PRODUCTS ====================
