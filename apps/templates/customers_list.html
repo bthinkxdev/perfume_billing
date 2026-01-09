@@ -86,7 +86,7 @@
         <!-- Search & Filter Form -->
         <form method="get" class="mb-4">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <input type="text" name="search" class="form-control" placeholder="Search ID, Name, Phone, Company..." value="{{ search }}">
                 </div>
                 <div class="col-md-2">
@@ -119,6 +119,11 @@
                     <button type="submit" class="btn btn-primary w-100">
                         <i class="bi bi-search"></i> Search
                     </button>
+                </div>
+                <div class="col-md-1">
+                    <a href="{% url 'apps:customers_list' %}" class="btn btn-outline-secondary w-100">
+                        <i class="bi bi-x-circle"></i> Clear
+                    </a>
                 </div>
             </div>
         </form>
