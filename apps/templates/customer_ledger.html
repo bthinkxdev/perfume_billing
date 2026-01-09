@@ -199,10 +199,10 @@
                 <tfoot>
                     <tr class="table-active">
                         <td colspan="{% if customer %}4{% else %}5{% endif %}" class="text-end"><strong>Total:</strong></td>
-                        <td class="text-end"><strong class="text-danger">{{ total_debit|floatformat:2 }}</strong></td>
+                        <td class="text-end"><strong class="text-danger p-2">{{ total_debit|floatformat:2 }}</strong></td>
                         <td class="text-end"><strong class="text-success">{{ total_credit|floatformat:2 }}</strong></td>
                         <td class="text-end">
-                            <strong class="{% if net_balance > 0 %}text-danger{% elif net_balance < 0 %}text-success{% endif %}">
+                            <strong class="{% if net_balance > 0 %}text-danger{% elif net_balance < 0 %}text-success{% endif %} p-2">
                                 {{ net_balance|floatformat:2 }}
                             </strong>
                         </td>
