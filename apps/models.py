@@ -1,9 +1,10 @@
-from django.db import models
+from django.db import models, connection
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import uuid
+import re
 
 
 class CompanyProfile(models.Model):
@@ -233,6 +234,70 @@ class Product(models.Model):
         if customer_type == 'WHOLESALE':
             return self.wholesale_price
         return self.retail_price
+
+    # ---- Data cleanup helpers ------------------------------------------------
+    @staticmethod
+    def _coerce_decimal(raw_value):
+        """
+        Safely convert a raw DB value to Decimal.
+        - Removes non-numeric characters
+        - Falls back to Decimal('0') on failure
+        """
+        if raw_value is None:
+            return Decimal('0')
+
+        # Keep digits, minus sign and decimal point; drop everything else
+        cleaned = re.sub(r'[^0-9\.\-]', '', str(raw_value))
+
+        # Handle edge cases that still aren't valid decimals
+        if cleaned in ('', '-', '.', '-.', '.-', '--'):
+            cleaned = '0'
+
+        try:
+            return Decimal(cleaned)
+        except InvalidOperation:
+            return Decimal('0')
+
+    @classmethod
+    def sanitize_decimal_fields(cls):
+        """
+        Find and fix invalid decimal strings that can break SQLite converters.
+        Returns a list of (id, sku, fields_fixed) for reporting.
+        """
+        decimal_fields = [
+            'size_ml',
+            'cost_price',
+            'wholesale_price',
+            'retail_price',
+            'stock_qty',
+            'reorder_level',
+        ]
+
+        cleaned = []
+
+        # Pull raw values directly from the DB to avoid Django's converters
+        field_list = ', '.join(decimal_fields)
+        query = f"SELECT id, sku, {field_list} FROM {cls._meta.db_table}"
+
+        with connection.cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+
+        for row in rows:
+            product_id, sku, *values = row
+            updates = {}
+
+            for field_name, raw_val in zip(decimal_fields, values):
+                try:
+                    Decimal(str(raw_val))
+                except (InvalidOperation, TypeError, ValueError):
+                    updates[field_name] = cls._coerce_decimal(raw_val)
+
+            if updates:
+                cls.objects.filter(id=product_id).update(**updates)
+                cleaned.append((product_id, sku, updates))
+
+        return cleaned
 
 
 class Invoice(models.Model):

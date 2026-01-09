@@ -8,7 +8,7 @@ from .models import (
     Product, Brand, Supplier, StockAdjustment, 
     ActivityLog, InvoiceItem
 )
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 
 # ==================== PRODUCTS ====================
@@ -16,49 +16,94 @@ from decimal import Decimal
 @login_required
 def products_list(request):
     """List all products with search and filters"""
-    products = Product.objects.select_related('brand', 'supplier').all()
-    
-    # Search
-    search = request.GET.get('search', '')
-    if search:
-        products = products.filter(
-            Q(sku__icontains=search) |
-            Q(barcode__icontains=search) |
-            Q(fragrance_name__icontains=search) |
-            Q(brand__name__icontains=search)
-        )
-    
-    # Filters
+    def build_queryset():
+        qs = Product.objects.select_related('brand', 'supplier').all()
+
+        # Search
+        if search:
+            qs = qs.filter(
+                Q(sku__icontains=search) |
+                Q(barcode__icontains=search) |
+                Q(fragrance_name__icontains=search) |
+                Q(brand__name__icontains=search)
+            )
+
+        # Filters
+        if brand_id:
+            qs = qs.filter(brand_id=brand_id)
+
+        if concentration:
+            qs = qs.filter(concentration=concentration)
+
+        if status_filter == 'active':
+            qs = qs.filter(is_active=True)
+        elif status_filter == 'inactive':
+            qs = qs.filter(is_active=False)
+        elif status_filter == 'low_stock':
+            qs = qs.filter(stock_qty__lte=F('reorder_level'))
+
+        return qs
+
+    # Request inputs
+    search = request.GET.get('search', '').strip()
     brand_id = request.GET.get('brand')
-    if brand_id:
-        products = products.filter(brand_id=brand_id)
-    
     concentration = request.GET.get('concentration')
-    if concentration:
-        products = products.filter(concentration=concentration)
-    
-    status = request.GET.get('status')
-    if status == 'active':
-        products = products.filter(is_active=True)
-    elif status == 'inactive':
-        products = products.filter(is_active=False)
-    elif status == 'low_stock':
-        products = products.filter(stock_qty__lte=F('reorder_level'))
-    
-    # Low stock count (after applying filters/search)
-    low_stock_count = products.filter(
-        stock_qty__lte=F('reorder_level'),
-        stock_qty__gt=0
-    ).count()
-    
-    # Pagination
-    paginator = Paginator(products, 25)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
+    status_filter = request.GET.get('status')
+
+    cleaned_once = False
+
+    while True:
+        products = build_queryset()
+
+        low_stock_count = products.filter(
+            stock_qty__lte=F('reorder_level'),
+            stock_qty__gt=0
+        ).count()
+
+        paginator = Paginator(products, 25)
+        page_number = request.GET.get('page')
+
+        try:
+            page_obj = paginator.get_page(page_number)
+            # Force evaluation so any bad decimals are caught here
+            list(page_obj.object_list)
+            break
+        except InvalidOperation:
+            if cleaned_once:
+                # Second failure: surface an error and stop
+                messages.error(
+                    request,
+                    'Some products have invalid numeric values. Please edit affected products.'
+                )
+                page_obj = paginator.get_page(page_number)
+                break
+
+            cleaned_products = Product.sanitize_decimal_fields()
+            cleaned_once = True
+
+            if cleaned_products:
+                fixed_skus = ", ".join([sku for _, sku, _ in cleaned_products][:5])
+                messages.warning(
+                    request,
+                    f"Fixed invalid numeric data for {len(cleaned_products)} product(s): {fixed_skus}"
+                    + (" ..." if len(cleaned_products) > 5 else "")
+                )
+            else:
+                messages.error(
+                    request,
+                    "Found invalid numeric data in products, but couldn't auto-fix it. "
+                    "Please review product prices/stock values."
+                )
+                # Show empty list to avoid repeated crashes
+                products = Product.objects.none()
+                low_stock_count = 0
+                paginator = Paginator(products, 25)
+                page_obj = paginator.get_page(1)
+                break
+
     # Get brands for filter
     brands = Brand.objects.filter(is_active=True).order_by('name')
-    
+
     context = {
         'page_obj': page_obj,
         'brands': brands,
