@@ -220,7 +220,32 @@ class Product(models.Model):
         """Get complete product name"""
         return f"{self.brand.name} {self.fragrance_name} {self.concentration} {self.size_ml}ml"
 
+    def _normalize_decimal_fields(self):
+        """
+        Ensure all decimal fields store valid Decimal values before saving.
+        Any malformed or non-numeric input is coerced to a safe Decimal.
+        """
+        decimal_fields = [
+            'size_ml',
+            'cost_price',
+            'wholesale_price',
+            'retail_price',
+            'stock_qty',
+            'reorder_level',
+        ]
+
+        for field_name in decimal_fields:
+            raw_val = getattr(self, field_name, None)
+            try:
+                # Attempt a normal Decimal conversion first
+                coerced = Decimal(raw_val)
+            except (InvalidOperation, TypeError, ValueError):
+                coerced = self._coerce_decimal(raw_val)
+            setattr(self, field_name, coerced)
+
     def save(self, *args, **kwargs):
+        # Normalize decimals up-front so bad values never reach the DB
+        self._normalize_decimal_fields()
         if not self.description:
             self.description = self.get_full_name()
         super().save(*args, **kwargs)

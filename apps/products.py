@@ -8,7 +8,47 @@ from .models import (
     Product, Brand, Supplier, StockAdjustment, 
     ActivityLog, InvoiceItem
 )
-from decimal import Decimal, InvalidOperation
+from decimal import InvalidOperation
+from typing import Callable, Tuple, List
+
+
+def _safe_products_queryset(
+    qs_builder: Callable[[], any],
+    request=None,
+    context_label: str = "products"
+) -> Tuple[any, List[tuple]]:
+    """
+    Build a products queryset defensively:
+    - Attempt to evaluate one row to trigger any sqlite Decimal conversion issues.
+    - If InvalidOperation occurs, sanitize DB values and retry once.
+    Returns (queryset, cleaned_products).
+    """
+    cleaned_products: List[tuple] = []
+
+    def _evaluate(qs):
+        # Evaluate a single row to hit converters without loading everything
+        list(qs[:1])
+
+    try:
+        qs = qs_builder()
+        _evaluate(qs)
+        return qs, cleaned_products
+    except InvalidOperation:
+        cleaned_products = Product.sanitize_decimal_fields()
+        qs = qs_builder()
+
+        # One more attempt; if it still fails, let it propagate
+        _evaluate(qs)
+
+        if request and cleaned_products:
+            fixed_skus = ", ".join([sku for _, sku, _ in cleaned_products][:5])
+            messages.warning(
+                request,
+                f"Fixed invalid numeric data for {len(cleaned_products)} {context_label}: "
+                f"{fixed_skus}" + (" ..." if len(cleaned_products) > 5 else "")
+            )
+
+        return qs, cleaned_products
 
 
 # ==================== PRODUCTS ====================
@@ -135,12 +175,12 @@ def product_create(request):
                 brand=brand,
                 fragrance_name=request.POST.get('fragrance_name'),
                 concentration=request.POST.get('concentration'),
-                size_ml=Decimal(request.POST.get('size_ml')),
-                cost_price=Decimal(request.POST.get('cost_price')),
-                wholesale_price=Decimal(request.POST.get('wholesale_price')),
-                retail_price=Decimal(request.POST.get('retail_price')),
-                stock_qty=Decimal(request.POST.get('stock_qty', 0)),
-                reorder_level=Decimal(request.POST.get('reorder_level', 0)),
+                size_ml=Product._coerce_decimal(request.POST.get('size_ml')),
+                cost_price=Product._coerce_decimal(request.POST.get('cost_price')),
+                wholesale_price=Product._coerce_decimal(request.POST.get('wholesale_price')),
+                retail_price=Product._coerce_decimal(request.POST.get('retail_price')),
+                stock_qty=Product._coerce_decimal(request.POST.get('stock_qty', 0)),
+                reorder_level=Product._coerce_decimal(request.POST.get('reorder_level', 0)),
                 batch_no=request.POST.get('batch_no', ''),
             )
             
@@ -198,11 +238,11 @@ def product_edit(request, pk):
             product.brand = brand
             product.fragrance_name = request.POST.get('fragrance_name')
             product.concentration = request.POST.get('concentration')
-            product.size_ml = Decimal(request.POST.get('size_ml'))
-            product.cost_price = Decimal(request.POST.get('cost_price'))
-            product.wholesale_price = Decimal(request.POST.get('wholesale_price'))
-            product.retail_price = Decimal(request.POST.get('retail_price'))
-            product.reorder_level = Decimal(request.POST.get('reorder_level', 0))
+            product.size_ml = Product._coerce_decimal(request.POST.get('size_ml'))
+            product.cost_price = Product._coerce_decimal(request.POST.get('cost_price'))
+            product.wholesale_price = Product._coerce_decimal(request.POST.get('wholesale_price'))
+            product.retail_price = Product._coerce_decimal(request.POST.get('retail_price'))
+            product.reorder_level = Product._coerce_decimal(request.POST.get('reorder_level', 0))
             product.batch_no = request.POST.get('batch_no', '')
             
             supplier_id = request.POST.get('supplier')
@@ -266,7 +306,11 @@ def product_delete(request, pk):
 @login_required
 def product_detail(request, pk):
     """View product details with stock history"""
-    product = get_object_or_404(Product.objects.select_related('brand', 'supplier'), pk=pk)
+    try:
+        product = get_object_or_404(Product.objects.select_related('brand', 'supplier'), pk=pk)
+    except InvalidOperation:
+        Product.sanitize_decimal_fields()
+        product = get_object_or_404(Product.objects.select_related('brand', 'supplier'), pk=pk)
     
     # Get stock adjustments
     adjustments = product.adjustments.select_related('created_by').order_by('-created_at')[:10]
@@ -396,12 +440,16 @@ def stock_adjustment(request):
     if request.method == 'POST':
         try:
             product_id = request.POST.get('product')
-            product = Product.objects.get(id=product_id)
+            try:
+                product = Product.objects.get(id=product_id)
+            except InvalidOperation:
+                Product.sanitize_decimal_fields()
+                product = Product.objects.get(id=product_id)
             
             adjustment = StockAdjustment.objects.create(
                 product=product,
                 adjustment_type=request.POST.get('adjustment_type'),
-                quantity=Decimal(request.POST.get('quantity')),
+                quantity=Product._coerce_decimal(request.POST.get('quantity')),
                 reason=request.POST.get('reason', '') or '',
                 reference_no=request.POST.get('reference_no', ''),
                 created_by=request.user
@@ -422,7 +470,13 @@ def stock_adjustment(request):
         except Exception as e:
             messages.error(request, f'Error adjusting stock: {str(e)}')
     
-    products = Product.objects.filter(is_active=True).select_related('brand').order_by('brand__name', 'fragrance_name')
+    products, _ = _safe_products_queryset(
+        lambda: Product.objects.filter(is_active=True)
+        .select_related('brand')
+        .order_by('brand__name', 'fragrance_name'),
+        request,
+        context_label="products for stock adjustment"
+    )
     
     context = {
         'products': products,
@@ -452,7 +506,11 @@ def stock_history(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    products = Product.objects.filter(is_active=True).order_by('sku')
+    products, _ = _safe_products_queryset(
+        lambda: Product.objects.filter(is_active=True).order_by('sku'),
+        request,
+        context_label="products for stock history"
+    )
     
     context = {
         'page_obj': page_obj,
@@ -469,13 +527,18 @@ def ajax_product_search(request):
     """AJAX endpoint for product search (for billing)"""
     search = request.GET.get('q', '')
     
-    products = Product.objects.filter(
+    products_qs_builder = lambda: Product.objects.filter(
         Q(sku__icontains=search) |
         Q(barcode__icontains=search) |
         Q(fragrance_name__icontains=search),
         is_active=True,
         stock_qty__gt=0
     ).select_related('brand')[:10]
+
+    try:
+        products, _ = _safe_products_queryset(products_qs_builder)
+    except InvalidOperation:
+        return JsonResponse({'results': [], 'error': 'Invalid product numeric data'})
     
     results = [{
         'id': p.id,
@@ -496,10 +559,17 @@ def ajax_product_by_barcode(request):
     barcode = request.GET.get('barcode', '')
     
     try:
-        product = Product.objects.select_related('brand').get(
-            barcode=barcode,
-            is_active=True
-        )
+        try:
+            product = Product.objects.select_related('brand').get(
+                barcode=barcode,
+                is_active=True
+            )
+        except InvalidOperation:
+            Product.sanitize_decimal_fields()
+            product = Product.objects.select_related('brand').get(
+                barcode=barcode,
+                is_active=True
+            )
         
         return JsonResponse({
             'success': True,
