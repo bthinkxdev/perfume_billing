@@ -420,7 +420,7 @@ def product_report(request):
                            distinct=True),
         stock_value=F('stock_qty') * F('cost_price')
     )
-    
+    company = CompanyProfile.get_company()
     # Apply filters
     if search:
         products = products.filter(
@@ -498,5 +498,6 @@ def product_report(request):
         'stock_status': stock_status,
         'date_from': date_from,
         'date_to': date_to,
+        'company' : company
     }
     return render(request, 'product_report.html', context)
