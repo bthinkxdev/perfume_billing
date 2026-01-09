@@ -290,7 +290,7 @@ def sales_report(request):
     # Parse dates
     date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
     date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
-    
+    company = CompanyProfile.get_company()
     # Base query
     invoices = Invoice.objects.filter(
         status='CONFIRMED',
@@ -386,6 +386,7 @@ def sales_report(request):
         'date_to': date_to,
         'customer_type': customer_type,
         'customer_types': Customer.CUSTOMER_TYPE_CHOICES,
+        'company': company,
     }
     return render(request, 'sales_report.html', context)
 

@@ -112,6 +112,9 @@
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-bar-chart"></i> Generate Report
                 </button>
+                <a href="{% url 'apps:sales_report' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Clear
+                </a>
                 <button type="button" onclick="window.print()" class="btn btn-outline-secondary">
                     <i class="bi bi-printer"></i> Print
                 </button>
@@ -143,7 +146,15 @@
 {% endif %}
 
 <!-- Report Data -->
-<div class="card">
+<div class="card print-only">
+        <div class="print-header">
+            <div class="company">{{ company.company_name_en }}</div>
+            {% if company.company_name_ar %}<div class="company">{{ company.company_name_ar }}</div>{% endif %}
+            <div class="company-small">
+                {{ company.address_line1 }}{% if company.address_line2 %}, {{ company.address_line2 }}{% endif %}{% if company.address_line3 %}, {{ company.address_line3 }}{% endif %}<br>
+                Phone: {{ company.phone }} | Mobile: {{ company.mobile }}{% if company.email %} | Email: {{ company.email }}{% endif %}{% if company.trn_number %} | TRN: {{ company.trn_number }}{% endif %}
+            </div>
+        </div>
     <div class="card-header">
         <strong>
             {% if report_type == 'daily' %}
@@ -241,15 +252,116 @@
             </table>
         </div>
     </div>
+    <div class="footer">
+            <p><strong>Thank you for your business!</strong></p>
+            <p>This is a computer-generated invoice and does not require a signature.</p>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_css %}
 <style>
+@page {
+    size: A4 portrait;
+    margin: 12mm;
+}
+
+/* ================= SCREEN ONLY ================= */
+.print-header,
+.footer {
+    display: none;
+}
+
+/* ================= PRINT ONLY ================= */
 @media print {
-    .sidebar, .topbar, .btn, .card-header button, .breadcrumb { display: none !important; }
-    .main-content { margin-left: 0 !important; }
-    .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+
+    /* Force black & white */
+    * {
+        color: #000 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+
+    /* Hide everything first */
+    body * {
+        visibility: hidden;
+    }
+
+    /* Show printable content */
+    .print-only,
+    .print-only * {
+        visibility: visible;
+    }
+
+    /* Ensure footer is visible */
+    .footer,
+    .footer * {
+        visibility: visible !important;
+    }
+
+    /* Layout */
+    .print-only {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        
+    }
+
+    /* ===== HEADER ===== */
+    .print-header {
+        display: block;
+        text-align: center;
+        margin-top:20px
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #000;
+    }
+
+    .print-header .company {
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+    .print-header .company-small {
+        font-size: 11px;
+        line-height: 1.4;
+    }
+
+    /* ===== FOOTER ===== */
+    .footer {
+        display: block;
+        position: fixed;
+        bottom: 30mm;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 10px;
+        border-top: 1px solid #000;
+        padding-top: 6px;
+    }
+
+    /* Prevent table overlap */
+    .card-body {
+        padding-bottom: 25mm;
+    }
+
+    /* Table styling */
+    table {
+        font-size: 11px;
+        border-collapse: collapse;
+    }
+
+    th, td {
+        border: 1px solid #000 !important;
+    }
+
+    th {
+        background: #f2f2f2 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 }
 </style>
 {% endblock %}
