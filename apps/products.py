@@ -297,42 +297,78 @@ def product_detail(request, pk):
 @login_required
 def inventory_list(request):
     """Stock overview with filters"""
-    products = Product.objects.select_related('brand', 'supplier').filter(is_active=True)
-    
-    # Search
-    search = request.GET.get('search', '')
-    if search:
-        products = products.filter(
-            Q(sku__icontains=search) |
-            Q(barcode__icontains=search) |
-            Q(fragrance_name__icontains=search) |
-            Q(brand__name__icontains=search)
+    def build_queryset():
+        qs = Product.objects.select_related('brand', 'supplier').filter(is_active=True)
+
+        if search:
+            qs = qs.filter(
+                Q(sku__icontains=search) |
+                Q(barcode__icontains=search) |
+                Q(fragrance_name__icontains=search) |
+                Q(brand__name__icontains=search)
+            )
+
+        if stock_status == 'low':
+            qs = qs.filter(stock_qty__lte=F('reorder_level'), stock_qty__gt=0)
+        elif stock_status == 'out':
+            qs = qs.filter(stock_qty=0)
+        elif stock_status == 'available':
+            qs = qs.filter(stock_qty__gt=F('reorder_level'))
+
+        if brand_id:
+            qs = qs.filter(brand_id=brand_id)
+
+        # Calculate stock value
+        return qs.annotate(
+            stock_value=F('stock_qty') * F('cost_price')
         )
-    
-    # Stock status filter
+
+    search = request.GET.get('search', '').strip()
     stock_status = request.GET.get('stock_status')
-    if stock_status == 'low':
-        products = products.filter(stock_qty__lte=F('reorder_level'), stock_qty__gt=0)
-    elif stock_status == 'out':
-        products = products.filter(stock_qty=0)
-    elif stock_status == 'available':
-        products = products.filter(stock_qty__gt=F('reorder_level'))
-    
-    # Brand filter
     brand_id = request.GET.get('brand')
-    if brand_id:
-        products = products.filter(brand_id=brand_id)
-    
-    # Calculate stock value
-    products = products.annotate(
-        stock_value=F('stock_qty') * F('cost_price')
-    )
-    
-    # Pagination
-    paginator = Paginator(products, 25)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
+
+    cleaned_once = False
+
+    while True:
+        products = build_queryset()
+
+        paginator = Paginator(products, 25)
+        page_number = request.GET.get('page')
+
+        try:
+            page_obj = paginator.get_page(page_number)
+            list(page_obj.object_list)
+            break
+        except InvalidOperation:
+            if cleaned_once:
+                messages.error(
+                    request,
+                    'Some inventory items have invalid numeric values. Please edit affected products.'
+                )
+                page_obj = paginator.get_page(page_number)
+                break
+
+            cleaned_products = Product.sanitize_decimal_fields()
+            cleaned_once = True
+
+            if cleaned_products:
+                fixed_skus = ", ".join([sku for _, sku, _ in cleaned_products][:5])
+                messages.warning(
+                    request,
+                    f"Fixed invalid numeric data for {len(cleaned_products)} product(s): {fixed_skus}"
+                    + (" ..." if len(cleaned_products) > 5 else "")
+                )
+            else:
+                messages.error(
+                    request,
+                    "Found invalid numeric data in products, but couldn't auto-fix it. "
+                    "Please review product prices/stock values."
+                )
+                products = Product.objects.none()
+                paginator = Paginator(products, 25)
+                page_obj = paginator.get_page(1)
+                break
+
     # Stock summary
     summary = products.aggregate(
         total_items=Sum('stock_qty'),
