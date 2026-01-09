@@ -24,31 +24,29 @@ def _safe_products_queryset(
     Returns (queryset, cleaned_products).
     """
     cleaned_products: List[tuple] = []
+    last_error = None
 
-    def _evaluate(qs):
-        # Evaluate entire queryset once to surface any bad decimals before use
-        return list(qs)
+    for attempt in (1, 2):
+        try:
+            qs = qs_builder()
+            evaluated = list(qs)  # Evaluate all rows to surface converter issues
+            return evaluated, cleaned_products
+        except InvalidOperation as exc:
+            last_error = exc
+            cleaned_products = Product.sanitize_decimal_fields()
+            # retry on next loop
+            continue
 
-    try:
-        qs = qs_builder()
-        evaluated = _evaluate(qs)
-        return evaluated, cleaned_products
-    except InvalidOperation:
-        cleaned_products = Product.sanitize_decimal_fields()
-        qs = qs_builder()
+    # If we reach here, both attempts failed; fail gracefully
+    if request:
+        messages.error(
+            request,
+            f"Invalid numeric data detected while loading {context_label}. "
+            "Please correct product values in the catalog."
+        )
 
-        # One more attempt; if it still fails, let it propagate
-        evaluated = _evaluate(qs)
-
-        if request and cleaned_products:
-            fixed_skus = ", ".join([sku for _, sku, _ in cleaned_products][:5])
-            messages.warning(
-                request,
-                f"Fixed invalid numeric data for {len(cleaned_products)} {context_label}: "
-                f"{fixed_skus}" + (" ..." if len(cleaned_products) > 5 else "")
-            )
-
-        return evaluated, cleaned_products
+    # Return empty list to keep template rendering safe
+    return [], cleaned_products
 
 
 # ==================== PRODUCTS ====================
