@@ -1,6 +1,7 @@
 # apps/urls.py
 
 from django.urls import path
+from django.contrib.auth import views as auth_views
 from . import views
 from . import products
 from . import purchases
@@ -11,6 +12,11 @@ app_name = 'apps'
 urlpatterns = [
     # Dashboard
     path('', views.dashboard, name='dashboard'),
+    
+    # Authentication
+    path('login/', auth_views.LoginView.as_view(template_name="registration/login.html"), name='login'),
+    # Authentication
+    path('logout/', views.user_logout, name='logout'),
     
     # New Bill
     path('bill/new/', views.new_bill, name='new_bill'),

@@ -177,6 +177,13 @@
             padding: 0.5rem 1rem;
             background: var(--light);
             border-radius: 50px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+        }
+        
+        .user-info:hover {
+            background: #e2e8f0;
         }
         
         .user-avatar {
@@ -190,6 +197,84 @@
             justify-content: center;
             font-weight: 600;
             font-size: 0.875rem;
+        }
+        
+        /* User Dropdown */
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            right: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 200px;
+            display: none;
+            z-index: 1000;
+            overflow: hidden;
+        }
+        
+        .user-dropdown.show {
+            display: block;
+            animation: slideDown 0.2s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .user-dropdown-item {
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--dark);
+            text-decoration: none;
+            transition: background 0.2s;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .user-dropdown-item:hover {
+            background: var(--light);
+        }
+        
+        .user-dropdown-item i {
+            font-size: 1.1rem;
+            width: 20px;
+        }
+        
+        .user-dropdown-divider {
+            height: 1px;
+            background: #e2e8f0;
+            margin: 0.25rem 0;
+        }
+        
+        .user-dropdown-header {
+            padding: 0.75rem 1rem;
+            background: var(--light);
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .user-dropdown-header .user-name {
+            font-weight: 600;
+            color: var(--dark);
+            display: block;
+        }
+        
+        .user-dropdown-header .user-role {
+            font-size: 0.8rem;
+            color: #64748b;
         }
         
         /* Content Area */
@@ -432,9 +517,42 @@
                 <button class="btn btn-sm btn-light">
                     <i class="bi bi-bell"></i>
                 </button>
-                <div class="user-info">
+                <div class="user-info" id="userInfoDropdown">
                     <div class="user-avatar">{{ request.user.first_name.0|default:"U" }}</div>
                     <span class="fw-medium">{{ request.user.get_full_name|default:request.user.username }}</span>
+                    <i class="bi bi-chevron-down ms-1" style="font-size: 0.75rem;"></i>
+                    
+                    <!-- User Dropdown Menu -->
+                    <div class="user-dropdown" id="userDropdownMenu">
+                        <div class="user-dropdown-header">
+                            <span class="user-name">{{ request.user.get_full_name|default:request.user.username }}</span>
+                            <span class="user-role">
+                                {% if user_role == 'ADMIN' %}
+                                    <i class="bi bi-star-fill text-warning"></i> Administrator
+                                {% elif user_role == 'STAFF' %}
+                                    <i class="bi bi-person-badge"></i> Staff Member
+                                {% else %}
+                                    <i class="bi bi-person"></i> User
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% comment %} <a href="#" class="user-dropdown-item">
+                            <i class="bi bi-person-circle"></i>
+                            <span>My Profile</span>
+                        </a> {% endcomment %}
+                        <a href="#" class="user-dropdown-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Settings</span>
+                        </a>
+                        <div class="user-dropdown-divider"></div>
+                        <form method="post" action="{% url 'apps:logout' %}" style="margin: 0;">
+                            {% csrf_token %}
+                            <button type="submit" class="user-dropdown-item" style="color: var(--danger);">
+                                <i class="bi bi-box-arrow-right"></i>
+                                <span>Logout</span>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -450,6 +568,38 @@
     
     <!-- jQuery (for AJAX) -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    
+    <!-- User Dropdown Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const userInfo = document.getElementById('userInfoDropdown');
+            const userDropdown = document.getElementById('userDropdownMenu');
+            
+            if (userInfo && userDropdown) {
+                // Toggle dropdown on click
+                userInfo.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    userDropdown.classList.toggle('show');
+                });
+                
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!userInfo.contains(e.target)) {
+                        userDropdown.classList.remove('show');
+                    }
+                });
+                
+                // Prevent dropdown from closing when clicking inside it
+                userDropdown.addEventListener('click', function(e) {
+                    // Allow form submission (logout button)
+                    if (e.target.type === 'submit' || e.target.closest('form')) {
+                        return;
+                    }
+                    e.stopPropagation();
+                });
+            }
+        });
+    </script>
     
     {% block extra_js %}{% endblock %}
 </body>

@@ -2,6 +2,7 @@
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import logout
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Sum, Count, Q, F
 from django.utils import timezone
@@ -562,6 +563,15 @@ def confirm_draft_invoice(request, invoice_id):
         'success': True,
         'message': 'Invoice confirmed successfully'
     })
+
+
+# ==================== AUTHENTICATION ====================
+@login_required
+@require_http_methods(["POST"])
+def user_logout(request):
+    """Log out the current user and redirect to login page"""
+    logout(request)
+    return redirect('/login/')  # Redirect to app login page
 
 
 
