@@ -14,6 +14,7 @@ from .models import (
     Invoice, InvoiceItem, Product, Customer, Payment,
     CompanyProfile, PriceOverrideLog, ActivityLog
 )
+from .permissions import permission_required
 
 
 # ==================== DASHBOARD ====================
@@ -492,6 +493,7 @@ def invoice_print(request, invoice_id):
 
 
 @login_required
+@permission_required('billing.cancel_invoice', as_json=True)
 @require_http_methods(["POST"])
 def cancel_invoice(request, invoice_id):
     """Cancel invoice"""

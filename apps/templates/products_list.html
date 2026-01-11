@@ -48,9 +48,11 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span>All Products</span>
+        {% if perm.can_manage_products %}
         <a href="{% url 'apps:product_create' %}" class="btn btn-primary btn-sm btn-icon">
             <i class="bi bi-plus-lg"></i> Add Product
         </a>
+        {% endif %}
     </div>
     <div class="card-body">
         <!-- Search & Filter Form -->
@@ -153,12 +155,14 @@
                                 <a href="{% url 'apps:product_detail' product.id %}" class="btn btn-outline-primary" title="View">
                                     <i class="bi bi-eye"></i>
                                 </a>
+                                {% if perm.can_manage_products %}
                                 <a href="{% url 'apps:product_edit' product.id %}" class="btn btn-outline-secondary" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </a>
                                 <a href="{% url 'apps:product_delete' product.id %}" class="btn btn-outline-danger" title="Delete">
                                     <i class="bi bi-trash"></i>
                                 </a>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>

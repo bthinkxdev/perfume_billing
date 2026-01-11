@@ -29,7 +29,7 @@
                 </button>
                 {% endif %}
 
-                {% if invoice.status == 'CONFIRMED' %}
+                {% if perm.can_cancel_invoice and invoice.status == 'CONFIRMED' %}
                 <button class="btn btn-danger"
                  onclick="cancelInvoice({{ invoice.id }})">
                 <i class="bi bi-x-circle me-1"></i> Cancel Invoice

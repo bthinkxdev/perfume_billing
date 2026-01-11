@@ -8,6 +8,7 @@ from .models import (
     Product, Brand, Supplier, StockAdjustment, 
     ActivityLog, InvoiceItem
 )
+from .permissions import permission_required
 from decimal import Decimal
 
 
@@ -71,6 +72,7 @@ def products_list(request):
 
 
 @login_required
+@permission_required('products.manage')
 def product_create(request):
     """Create new product"""
     if request.method == 'POST':
@@ -133,6 +135,7 @@ def product_create(request):
 
 
 @login_required
+@permission_required('products.manage')
 def product_edit(request, pk):
     """Edit existing product"""
     product = get_object_or_404(Product, pk=pk)
@@ -195,6 +198,7 @@ def product_edit(request, pk):
 
 
 @login_required
+@permission_required('products.manage')
 def product_delete(request, pk):
     """Delete product (soft delete by marking inactive)"""
     product = get_object_or_404(Product, pk=pk)
@@ -310,6 +314,7 @@ def inventory_list(request):
 
 
 @login_required
+@permission_required('inventory.adjust')
 def stock_adjustment(request):
     """Stock adjustment form"""
     if request.method == 'POST':
@@ -453,6 +458,7 @@ def brands_list(request):
 
 
 @login_required
+@permission_required('products.manage', as_json=True)
 def brand_create(request):
     """Create new brand - AJAX"""
     if request.method == 'POST':

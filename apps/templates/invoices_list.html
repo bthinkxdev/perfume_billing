@@ -243,7 +243,7 @@
                                    target="_blank" title="Print">
                                     <i class="bi bi-printer"></i>
                                 </a>
-                                {% if invoice.status != 'CANCELLED' %}
+                                {% if perm.can_cancel_invoice and invoice.status != 'CANCELLED' %}
                                 <button class="btn btn-sm btn-outline-danger" 
                                         onclick="cancelInvoice({{ invoice.id }})" title="Cancel">
                                     <i class="bi bi-x-circle"></i>

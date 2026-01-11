@@ -79,9 +79,11 @@
     <div class="card-header d-flex justify-content-between align-items-center">
         <span>Current Stock</span>
         <div class="d-flex gap-2">
+            {% if perm.can_adjust_stock %}
             <a href="{% url 'apps:stock_adjustment' %}" class="btn btn-primary btn-sm btn-icon">
                 <i class="bi bi-arrow-repeat"></i> Adjust Stock
             </a>
+            {% endif %}
             <a href="{% url 'apps:stock_history' %}" class="btn btn-secondary btn-sm btn-icon">
                 <i class="bi bi-clock-history"></i> View History
             </a>
@@ -174,9 +176,11 @@
                                 <a href="{% url 'apps:product_detail' product.id %}" class="btn btn-outline-primary" title="View">
                                     <i class="bi bi-eye"></i>
                                 </a>
+                                {% if perm.can_adjust_stock %}
                                 <a href="{% url 'apps:stock_adjustment' %}?product={{ product.id }}" class="btn btn-outline-success" title="Adjust Stock">
                                     <i class="bi bi-arrow-repeat"></i>
                                 </a>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>

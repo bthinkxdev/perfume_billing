@@ -7,9 +7,11 @@ from django.http import JsonResponse
 from django.utils import timezone
 
 from .models import Supplier, Product, PurchaseOrder, PurchaseItem, ActivityLog
+from .permissions import permission_required
 
 
 @login_required
+@permission_required('purchase_orders.access')
 def purchase_orders_list(request):
     orders = PurchaseOrder.objects.select_related('supplier', 'created_by')
 
@@ -42,6 +44,7 @@ def purchase_orders_list(request):
 
 
 @login_required
+@permission_required('purchase_orders.access')
 def purchase_order_new(request):
     suppliers = Supplier.objects.filter(is_active=True) if hasattr(Supplier, 'is_active') else Supplier.objects.all()
     products = Product.objects.filter(is_active=True).values('id', 'sku', 'description')
@@ -54,6 +57,7 @@ def purchase_order_new(request):
 
 
 @login_required
+@permission_required('purchase_orders.access', as_json=True)
 @transaction.atomic
 def purchase_order_save(request):
     if request.method != 'POST':
@@ -132,6 +136,7 @@ def purchase_order_save(request):
 
 
 @login_required
+@permission_required('purchase_orders.access')
 def purchase_order_detail(request, pk):
     po = get_object_or_404(PurchaseOrder.objects.select_related('supplier', 'created_by'), pk=pk)
     items = po.items.select_related('product')
@@ -142,6 +147,7 @@ def purchase_order_detail(request, pk):
 
 
 @login_required
+@permission_required('purchase_orders.access')
 def purchase_order_print(request, pk):
     po = get_object_or_404(PurchaseOrder.objects.select_related('supplier'), pk=pk)
     items = po.items.select_related('product')
@@ -152,6 +158,7 @@ def purchase_order_print(request, pk):
 
 
 @login_required
+@permission_required('purchase_orders.access', as_json=True)
 @transaction.atomic
 def purchase_order_receive(request, pk):
     po = get_object_or_404(PurchaseOrder, pk=pk)
@@ -162,6 +169,7 @@ def purchase_order_receive(request, pk):
 
 
 @login_required
+@permission_required('purchase_orders.access', as_json=True)
 def quick_add_supplier(request):
     """Quick add supplier via AJAX."""
     if request.method != 'POST':
