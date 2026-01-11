@@ -30,14 +30,18 @@
                             <label class="form-label">SKU / Item No <span class="text-danger">*</span></label>
                             <input type="text" name="sku" class="form-control" required 
                                    value="{% if product %}{{ product.sku }}{% endif %}"
-                                   placeholder="e.g., PERF001">
+                                   placeholder="e.g., PERF001"
+                                   maxlength="50"
+                                   autocomplete="off">
                             <div class="invalid-feedback"></div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Barcode</label>
                             <input type="text" name="barcode" class="form-control" 
                                    value="{% if product %}{{ product.barcode }}{% endif %}"
-                                   placeholder="Scan or enter barcode">
+                                   placeholder="Scan or enter barcode"
+                                   maxlength="100"
+                                   autocomplete="off">
                             <div class="invalid-feedback"></div>
                         </div>
 
@@ -65,7 +69,9 @@
                             <label class="form-label">Fragrance Name <span class="text-danger">*</span></label>
                             <input type="text" name="fragrance_name" class="form-control" required 
                                    value="{% if product %}{{ product.fragrance_name }}{% endif %}"
-                                   placeholder="e.g., Black Orchid">
+                                   placeholder="e.g., Black Orchid"
+                                   maxlength="255"
+                                   autocomplete="off">
                             <div class="invalid-feedback"></div>
                         </div>
 
@@ -84,9 +90,10 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Size (ml) <span class="text-danger">*</span></label>
-                            <input type="number" name="size_ml" class="form-control" step="0.01" min="0.01" required 
+                            <input type="text" name="size_ml" class="form-control" inputmode="decimal" required 
                                    value="{% if product %}{{ product.size_ml }}{% endif %}"
-                                   placeholder="e.g., 50">
+                                   placeholder="e.g., 50"
+                                   autocomplete="off">
                             <div class="invalid-feedback"></div>
                         </div>
                     </div>
@@ -101,23 +108,26 @@
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label">Cost Price <span class="text-danger">*</span></label>
-                            <input type="number" name="cost_price" class="form-control" step="0.01" min="0.01" required 
+                            <input type="text" name="cost_price" class="form-control" inputmode="decimal" required 
                                    value="{% if product %}{{ product.cost_price }}{% endif %}"
-                                   placeholder="0.00">
+                                   placeholder="0.00"
+                                   autocomplete="off">
                             <div class="invalid-feedback"></div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Wholesale Price <span class="text-danger">*</span></label>
-                            <input type="number" name="wholesale_price" class="form-control" step="0.01" min="0.01" required 
+                            <input type="text" name="wholesale_price" class="form-control" inputmode="decimal" required 
                                    value="{% if product %}{{ product.wholesale_price }}{% endif %}"
-                                   placeholder="0.00">
+                                   placeholder="0.00"
+                                   autocomplete="off">
                             <div class="invalid-feedback"></div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Retail Price <span class="text-danger">*</span></label>
-                            <input type="number" name="retail_price" class="form-control" step="0.01" min="0.01" required 
+                            <input type="text" name="retail_price" class="form-control" inputmode="decimal" required 
                                    value="{% if product %}{{ product.retail_price }}{% endif %}"
-                                   placeholder="0.00">
+                                   placeholder="0.00"
+                                   autocomplete="off">
                             <div class="invalid-feedback"></div>
                         </div>
                     </div>
@@ -132,9 +142,10 @@
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label">Opening Stock</label>
-                            <input type="number" name="stock_qty" class="form-control" step="0.01" 
+                            <input type="text" name="stock_qty" class="form-control" inputmode="decimal"
                                    value="{% if product %}{{ product.stock_qty }}{% else %}0{% endif %}"
-                                   {% if is_edit %}readonly{% endif %}>
+                                   {% if is_edit %}readonly{% endif %}
+                                   autocomplete="off">
                             <div class="invalid-feedback"></div>
                             {% if is_edit %}
                             <small class="text-muted">Use Stock Adjustment to modify stock</small>
@@ -142,16 +153,19 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Reorder Level</label>
-                            <input type="number" name="reorder_level" class="form-control" step="0.01" 
+                            <input type="text" name="reorder_level" class="form-control" inputmode="decimal"
                                    value="{% if product %}{{ product.reorder_level }}{% else %}10{% endif %}"
-                                   placeholder="10">
+                                   placeholder="10"
+                                   autocomplete="off">
                             <div class="invalid-feedback"></div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Batch No</label>
                             <input type="text" name="batch_no" class="form-control" 
                                    value="{% if product %}{{ product.batch_no }}{% endif %}"
-                                   placeholder="Optional">
+                                   placeholder="Optional"
+                                   maxlength="50"
+                                   autocomplete="off">
                             <div class="invalid-feedback"></div>
                         </div>
                     </div>
@@ -202,12 +216,13 @@
                 <form id="addBrandForm">
                     {% csrf_token %}
                     <div class="mb-3">
-                        <label class="form-label">Brand Name</label>
-                        <input type="text" name="name" class="form-control" required>
+                        <label class="form-label">Brand Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required maxlength="100" autocomplete="off">
+                        <div class="invalid-feedback">Brand name is required.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Description</label>
-                        <textarea name="description" class="form-control" rows="2"></textarea>
+                        <textarea name="description" class="form-control" rows="2" maxlength="500"></textarea>
                     </div>
                 </form>
             </div>
@@ -227,25 +242,135 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!form) return;
 
     const alertBox = document.getElementById('formAlert');
+
+    // ==================== FIELD VALIDATION RULES ====================
+    // Based on Django Model constraints from models.py
     const rules = {
-        sku: { type: 'text', label: 'SKU / Item No', required: true },
-        brand: { type: 'select', label: 'Brand', required: true },
-        fragrance_name: { type: 'text', label: 'Fragrance Name', required: true },
-        concentration: { type: 'select', label: 'Concentration', required: true },
-        size_ml: { type: 'number', label: 'Size (ml)', required: true, positive: true, notZero: true },
-        cost_price: { type: 'number', label: 'Cost Price', required: true, positive: true, notZero: true },
-        wholesale_price: { type: 'number', label: 'Wholesale Price', required: true, positive: true, notZero: true },
-        retail_price: { type: 'number', label: 'Retail Price', required: true, positive: true, notZero: true },
-        stock_qty: { type: 'number', label: 'Opening Stock', nonNegative: true },
-        reorder_level: { type: 'number', label: 'Reorder Level', nonNegative: true },
-        batch_no: { type: 'text', label: 'Batch No', required: false },
-        supplier: { type: 'select', label: 'Supplier', required: false }
+        sku: {
+            type: 'text',
+            label: 'SKU / Item No',
+            required: true,
+            maxLength: 50,
+            pattern: /^[A-Za-z0-9\-_]+$/,
+            patternMsg: 'Only letters, numbers, hyphens and underscores allowed'
+        },
+        barcode: {
+            type: 'text',
+            label: 'Barcode',
+            required: false,
+            maxLength: 100,
+            pattern: /^[A-Za-z0-9\-]*$/,
+            patternMsg: 'Only letters, numbers and hyphens allowed'
+        },
+        brand: {
+            type: 'select',
+            label: 'Brand',
+            required: true
+        },
+        fragrance_name: {
+            type: 'text',
+            label: 'Fragrance Name',
+            required: true,
+            maxLength: 255
+        },
+        concentration: {
+            type: 'select',
+            label: 'Concentration',
+            required: true
+        },
+        size_ml: {
+            type: 'decimal',
+            label: 'Size (ml)',
+            required: true,
+            positive: true,
+            maxDigits: 8,        // max_digits=8 from model
+            decimalPlaces: 2,   // decimal_places=2 from model
+            maxIntDigits: 6,    // 8 - 2 = 6 integer digits
+            maxValue: 999999.99
+        },
+        cost_price: {
+            type: 'decimal',
+            label: 'Cost Price',
+            required: true,
+            positive: true,
+            maxDigits: 10,      // max_digits=10 from model
+            decimalPlaces: 2,   // decimal_places=2 from model
+            maxIntDigits: 8,    // 10 - 2 = 8 integer digits
+            maxValue: 99999999.99
+        },
+        wholesale_price: {
+            type: 'decimal',
+            label: 'Wholesale Price',
+            required: true,
+            positive: true,
+            maxDigits: 10,
+            decimalPlaces: 2,
+            maxIntDigits: 8,
+            maxValue: 99999999.99,
+            minField: 'cost_price',
+            minFieldLabel: 'Cost Price'
+        },
+        retail_price: {
+            type: 'decimal',
+            label: 'Retail Price',
+            required: true,
+            positive: true,
+            maxDigits: 10,
+            decimalPlaces: 2,
+            maxIntDigits: 8,
+            maxValue: 99999999.99,
+            minField: 'wholesale_price',
+            minFieldLabel: 'Wholesale Price'
+        },
+        stock_qty: {
+            type: 'decimal',
+            label: 'Opening Stock',
+            required: false,
+            nonNegative: true,
+            maxDigits: 10,
+            decimalPlaces: 2,
+            maxIntDigits: 8,
+            maxValue: 99999999.99
+        },
+        reorder_level: {
+            type: 'decimal',
+            label: 'Reorder Level',
+            required: false,
+            nonNegative: true,
+            maxDigits: 10,
+            decimalPlaces: 2,
+            maxIntDigits: 8,
+            maxValue: 99999999.99
+        },
+        batch_no: {
+            type: 'text',
+            label: 'Batch No',
+            required: false,
+            maxLength: 50,
+            pattern: /^[A-Za-z0-9\-_/]*$/,
+            patternMsg: 'Only letters, numbers, hyphens, underscores and slashes allowed'
+        },
+        supplier: {
+            type: 'select',
+            label: 'Supplier',
+            required: false
+        }
     };
+
+    // ==================== UTILITY FUNCTIONS ====================
 
     const clearErrors = () => {
         form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
         form.querySelectorAll('.invalid-feedback').forEach(fb => fb.textContent = '');
         if (alertBox) alertBox.classList.add('d-none');
+    };
+
+    const clearFieldError = (field) => {
+        if (!field) return;
+        field.classList.remove('is-invalid');
+        const container = field.closest('.col-md-6, .col-md-4, .col-md-12');
+        const feedback = container ? container.querySelector('.invalid-feedback') : null;
+        if (feedback) feedback.textContent = '';
     };
 
     const showError = (field, message) => {
@@ -256,36 +381,235 @@ document.addEventListener('DOMContentLoaded', () => {
         if (feedback) feedback.textContent = message;
     };
 
-    const validateField = (name, rule) => {
+    const showSuccess = (field) => {
+        if (!field) return;
+        field.classList.remove('is-invalid');
+        field.classList.add('is-valid');
+    };
+
+    // ==================== INPUT RESTRICTION HANDLERS ====================
+
+    // Restrict input to only allow certain characters (real-time blocking)
+    const restrictInput = (field, rule) => {
+        if (rule.type === 'decimal') {
+            // Allow only digits, one decimal point, and navigation keys
+            field.addEventListener('keypress', (e) => {
+                const char = e.key;
+                const value = field.value;
+                const selStart = field.selectionStart;
+                const selEnd = field.selectionEnd;
+
+                // Allow control keys
+                if (e.ctrlKey || e.metaKey) return;
+
+                // Allow navigation keys
+                if (['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(char)) {
+                    return;
+                }
+
+                // Allow minus at start for non-positive fields (though we use nonNegative)
+                // For this form, we don't allow negative, so block minus
+
+                // Block if not a digit or decimal
+                if (!/^[0-9.]$/.test(char)) {
+                    e.preventDefault();
+                    return;
+                }
+
+                // Only one decimal point allowed
+                if (char === '.' && value.includes('.')) {
+                    e.preventDefault();
+                    return;
+                }
+
+                // Limit decimal places
+                const decimalIdx = value.indexOf('.');
+                if (decimalIdx !== -1 && selStart > decimalIdx) {
+                    const decimalPart = value.substring(decimalIdx + 1);
+                    // If selection is not replacing, check decimal places
+                    if (selStart === selEnd && decimalPart.length >= (rule.decimalPlaces || 2)) {
+                        e.preventDefault();
+                        return;
+                    }
+                }
+
+                // Limit integer part digits
+                if (char !== '.') {
+                    const parts = value.split('.');
+                    const intPart = parts[0] || '';
+                    if (decimalIdx === -1 || selStart <= decimalIdx) {
+                        // Adding to integer part
+                        if (selStart === selEnd && intPart.length >= (rule.maxIntDigits || 8)) {
+                            e.preventDefault();
+                            return;
+                        }
+                    }
+                }
+            });
+
+            // Handle paste - validate and clean pasted content
+            field.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const paste = (e.clipboardData || window.clipboardData).getData('text');
+                const cleaned = paste.replace(/[^0-9.]/g, '');
+                
+                // Ensure only one decimal point
+                const parts = cleaned.split('.');
+                let result = parts[0];
+                if (parts.length > 1) {
+                    result += '.' + parts.slice(1).join('').substring(0, rule.decimalPlaces || 2);
+                }
+                
+                // Limit integer digits
+                const intPart = result.split('.')[0];
+                if (intPart.length > (rule.maxIntDigits || 8)) {
+                    result = intPart.substring(0, rule.maxIntDigits || 8) + (result.includes('.') ? '.' + result.split('.')[1] : '');
+                }
+                
+                document.execCommand('insertText', false, result);
+            });
+        }
+
+        if (rule.type === 'text' && rule.maxLength) {
+            // Enforce maxlength
+            field.setAttribute('maxlength', rule.maxLength);
+
+            // Block invalid characters based on pattern
+            if (rule.pattern) {
+                field.addEventListener('keypress', (e) => {
+                    const char = e.key;
+                    
+                    // Allow control keys
+                    if (e.ctrlKey || e.metaKey) return;
+                    if (['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(char)) {
+                        return;
+                    }
+
+                    // Test single character against a simplified pattern
+                    const testPattern = rule.pattern.source.replace(/[\^\$\*\+]/g, '');
+                    const charPattern = new RegExp(`[${testPattern.replace(/\[|\]/g, '')}]`);
+                    
+                    if (!charPattern.test(char)) {
+                        e.preventDefault();
+                    }
+                });
+
+                // Handle paste for text fields with pattern
+                field.addEventListener('paste', (e) => {
+                    setTimeout(() => {
+                        const value = field.value;
+                        if (!rule.pattern.test(value)) {
+                            // Clean the value
+                            const allowedChars = rule.pattern.source.replace(/[\^\$\*\+\[\]]/g, '');
+                            const cleanPattern = new RegExp(`[^${allowedChars}]`, 'g');
+                            field.value = value.replace(cleanPattern, '');
+                        }
+                        // Enforce max length
+                        if (field.value.length > rule.maxLength) {
+                            field.value = field.value.substring(0, rule.maxLength);
+                        }
+                    }, 0);
+                });
+            }
+        }
+    };
+
+    // ==================== VALIDATION FUNCTION ====================
+
+    const validateField = (name, rule, showErrors = true) => {
         const field = form.elements[name];
         if (!field) return true;
+
         const raw = (field.value || '').trim();
 
-        // Required text/select
+        // Required validation
         if (rule.required && raw === '') {
-            showError(field, `${rule.label} is required.`);
+            if (showErrors) showError(field, `${rule.label} is required.`);
             return false;
         }
 
-        if (rule.type === 'number') {
-            if (raw === '') {
-                return !rule.required;
+        // Skip further validation if empty and not required
+        if (raw === '' && !rule.required) {
+            return true;
+        }
+
+        // Text field validations
+        if (rule.type === 'text') {
+            // Max length check
+            if (rule.maxLength && raw.length > rule.maxLength) {
+                if (showErrors) showError(field, `${rule.label} must not exceed ${rule.maxLength} characters.`);
+                return false;
             }
+
+            // Pattern check
+            if (rule.pattern && raw !== '' && !rule.pattern.test(raw)) {
+                if (showErrors) showError(field, rule.patternMsg || `${rule.label} contains invalid characters.`);
+                return false;
+            }
+        }
+
+        // Decimal/Number field validations
+        if (rule.type === 'decimal') {
+            // Check if valid number
             const num = parseFloat(raw);
             if (isNaN(num)) {
-                showError(field, `${rule.label} must be a valid number.`);
+                if (showErrors) showError(field, `${rule.label} must be a valid number.`);
                 return false;
             }
-            if (rule.notZero && num === 0) {
-                showError(field, `${rule.label} cannot be zero.`);
-                return false;
-            }
+
+            // Positive check (must be > 0)
             if (rule.positive && num <= 0) {
-                showError(field, `${rule.label} must be greater than 0.`);
+                if (showErrors) showError(field, `${rule.label} must be greater than 0.`);
                 return false;
             }
+
+            // Non-negative check (must be >= 0)
             if (rule.nonNegative && num < 0) {
-                showError(field, `${rule.label} cannot be negative.`);
+                if (showErrors) showError(field, `${rule.label} cannot be negative.`);
+                return false;
+            }
+
+            // Max value check
+            if (rule.maxValue && num > rule.maxValue) {
+                if (showErrors) showError(field, `${rule.label} must not exceed ${rule.maxValue.toLocaleString()}.`);
+                return false;
+            }
+
+            // Decimal places check
+            if (rule.decimalPlaces) {
+                const decimalPart = raw.split('.')[1];
+                if (decimalPart && decimalPart.length > rule.decimalPlaces) {
+                    if (showErrors) showError(field, `${rule.label} can have at most ${rule.decimalPlaces} decimal places.`);
+                    return false;
+                }
+            }
+
+            // Integer digits check
+            if (rule.maxIntDigits) {
+                const intPart = raw.split('.')[0].replace('-', '');
+                if (intPart.length > rule.maxIntDigits) {
+                    if (showErrors) showError(field, `${rule.label} integer part must not exceed ${rule.maxIntDigits} digits.`);
+                    return false;
+                }
+            }
+
+            // Cross-field minimum comparison (e.g., wholesale >= cost)
+            if (rule.minField) {
+                const minField = form.elements[rule.minField];
+                if (minField && minField.value.trim() !== '') {
+                    const minValue = parseFloat(minField.value);
+                    if (!isNaN(minValue) && num < minValue) {
+                        if (showErrors) showError(field, `${rule.label} must be greater than or equal to ${rule.minFieldLabel}.`);
+                        return false;
+                    }
+                }
+            }
+        }
+
+        // Select field validation
+        if (rule.type === 'select') {
+            if (rule.required && raw === '') {
+                if (showErrors) showError(field, `Please select a ${rule.label}.`);
                 return false;
             }
         }
@@ -293,44 +617,185 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     };
 
-    // Clear field error on user input/change
-    Object.keys(rules).forEach(name => {
+    // ==================== EVENT LISTENERS ====================
+
+    // Initialize input restrictions and real-time validation
+    Object.entries(rules).forEach(([name, rule]) => {
         const field = form.elements[name];
         if (!field) return;
-        const handler = () => {
-            field.classList.remove('is-invalid');
-            const container = field.closest('.col-md-6, .col-md-4, .col-md-12');
-            const feedback = container ? container.querySelector('.invalid-feedback') : null;
-            if (feedback) feedback.textContent = '';
-        };
-        field.addEventListener('input', handler);
-        field.addEventListener('change', handler);
+
+        // Apply input restrictions (blocks invalid keystrokes)
+        restrictInput(field, rule);
+
+        // Real-time validation on input
+        field.addEventListener('input', () => {
+            clearFieldError(field);
+            // Validate without showing error (for real-time feedback)
+            const isValid = validateField(name, rule, false);
+            if (isValid && field.value.trim() !== '') {
+                // Optionally show success state
+                // showSuccess(field);
+            }
+        });
+
+        // Validation on blur (show errors when leaving field)
+        field.addEventListener('blur', () => {
+            if (field.value.trim() !== '' || rule.required) {
+                validateField(name, rule, true);
+            }
+        });
+
+        // Clear error on focus
+        field.addEventListener('focus', () => {
+            clearFieldError(field);
+        });
+
+        // Handle change for select elements
+        if (rule.type === 'select') {
+            field.addEventListener('change', () => {
+                clearFieldError(field);
+                validateField(name, rule, true);
+            });
+        }
     });
+
+    // Cross-field validation for price relationships
+    const priceFields = ['cost_price', 'wholesale_price', 'retail_price'];
+    priceFields.forEach(name => {
+        const field = form.elements[name];
+        if (!field) return;
+
+        field.addEventListener('blur', () => {
+            // Revalidate dependent fields when a price changes
+            if (name === 'cost_price') {
+                const wsField = form.elements['wholesale_price'];
+                if (wsField && wsField.value.trim() !== '') {
+                    validateField('wholesale_price', rules['wholesale_price'], true);
+                }
+            }
+            if (name === 'cost_price' || name === 'wholesale_price') {
+                const rtField = form.elements['retail_price'];
+                if (rtField && rtField.value.trim() !== '') {
+                    validateField('retail_price', rules['retail_price'], true);
+                }
+            }
+        });
+    });
+
+    // ==================== FORM SUBMISSION ====================
 
     form.addEventListener('submit', (e) => {
         clearErrors();
         let isValid = true;
         let firstInvalid = null;
 
+        // Validate all fields
         Object.entries(rules).forEach(([name, rule]) => {
             const field = form.elements[name];
-            const ok = validateField(name, rule);
+            const ok = validateField(name, rule, true);
             if (!ok) {
                 isValid = false;
-                if (!firstInvalid) firstInvalid = field;
+                if (!firstInvalid && field) firstInvalid = field;
             }
         });
+
+        // Additional business logic validations
+        const costPrice = parseFloat(form.elements['cost_price']?.value || 0);
+        const wholesalePrice = parseFloat(form.elements['wholesale_price']?.value || 0);
+        const retailPrice = parseFloat(form.elements['retail_price']?.value || 0);
+
+        if (!isNaN(costPrice) && !isNaN(wholesalePrice) && wholesalePrice < costPrice) {
+            showError(form.elements['wholesale_price'], 'Wholesale Price should be greater than or equal to Cost Price.');
+            isValid = false;
+            if (!firstInvalid) firstInvalid = form.elements['wholesale_price'];
+        }
+
+        if (!isNaN(wholesalePrice) && !isNaN(retailPrice) && retailPrice < wholesalePrice) {
+            showError(form.elements['retail_price'], 'Retail Price should be greater than or equal to Wholesale Price.');
+            isValid = false;
+            if (!firstInvalid) firstInvalid = form.elements['retail_price'];
+        }
 
         if (!isValid) {
             e.preventDefault();
             if (alertBox) alertBox.classList.remove('d-none');
-            if (firstInvalid) firstInvalid.focus();
+            if (firstInvalid) {
+                firstInvalid.focus();
+                firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         }
+    });
+
+    // ==================== CHARACTER COUNTER (Optional UX Enhancement) ====================
+    
+    // Add character counters for text fields with limits
+    const textFieldsWithLimits = ['sku', 'barcode', 'fragrance_name', 'batch_no'];
+    textFieldsWithLimits.forEach(name => {
+        const field = form.elements[name];
+        const rule = rules[name];
+        if (!field || !rule || !rule.maxLength) return;
+
+        // Create counter element
+        const container = field.closest('.col-md-6, .col-md-4, .col-md-12');
+        if (!container) return;
+
+        const counter = document.createElement('small');
+        counter.className = 'text-muted char-counter';
+        counter.style.cssText = 'float: right; font-size: 0.75rem;';
+        counter.textContent = `0 / ${rule.maxLength}`;
+        
+        const label = container.querySelector('.form-label');
+        if (label) {
+            label.style.display = 'flex';
+            label.style.justifyContent = 'space-between';
+            label.style.alignItems = 'center';
+            label.appendChild(counter);
+        }
+
+        // Update counter on input
+        field.addEventListener('input', () => {
+            const len = field.value.length;
+            counter.textContent = `${len} / ${rule.maxLength}`;
+            if (len >= rule.maxLength) {
+                counter.classList.add('text-danger');
+                counter.classList.remove('text-muted');
+            } else if (len >= rule.maxLength * 0.8) {
+                counter.classList.add('text-warning');
+                counter.classList.remove('text-muted', 'text-danger');
+            } else {
+                counter.classList.add('text-muted');
+                counter.classList.remove('text-warning', 'text-danger');
+            }
+        });
+
+        // Initialize counter
+        const initialLen = field.value.length;
+        counter.textContent = `${initialLen} / ${rule.maxLength}`;
     });
 });
 
+// ==================== BRAND MODAL HANDLER ====================
+
 function saveBrand() {
     const form = document.getElementById('addBrandForm');
+    const nameField = form.elements['name'];
+    const name = (nameField.value || '').trim();
+
+    // Validate brand name
+    if (name === '') {
+        nameField.classList.add('is-invalid');
+        alert('Brand name is required.');
+        nameField.focus();
+        return;
+    }
+
+    if (name.length > 100) {
+        nameField.classList.add('is-invalid');
+        alert('Brand name must not exceed 100 characters.');
+        nameField.focus();
+        return;
+    }
+
     const formData = new FormData(form);
     
     fetch("{% url 'apps:brand_create' %}", {
@@ -353,10 +818,17 @@ function saveBrand() {
             modal.hide();
             form.reset();
             
+            // Clear any validation states
+            nameField.classList.remove('is-invalid');
+            
             alert('Brand added successfully!');
         } else {
             alert('Error: ' + data.error);
         }
+    })
+    .catch(error => {
+        alert('Error saving brand. Please try again.');
+        console.error('Error:', error);
     });
 }
 </script>
