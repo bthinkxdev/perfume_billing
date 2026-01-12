@@ -7,6 +7,8 @@ from . import products
 from . import purchases
 from . import customer
 from . import payments
+from django.conf import settings
+from django.conf.urls.static import static
 app_name = 'apps'
 
 urlpatterns = [
@@ -99,3 +101,5 @@ urlpatterns = [
     path('ajax/customer-search/', customer.ajax_customer_search, name='ajax_customer_search'),
     path('ajax/customer-phone/', customer.ajax_customer_by_phone, name='ajax_customer_by_phone'),
 ]
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

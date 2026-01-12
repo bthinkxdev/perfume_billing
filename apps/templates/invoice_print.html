@@ -181,6 +181,73 @@
             tfoot { display: table-row-group; }
             tr { page-break-inside: avoid; }
         }
+ .header-flex {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    text-align: left;
+}
+
+.logo-box {
+    flex: 0 0 90px;
+}
+
+.logo-img {
+    max-height: 100px;
+    max-width: 90px;
+    object-fit: contain;
+}
+
+.company-text {
+    flex: 1;
+}
+
+.company-name {
+    font-size: 22px;
+    font-weight: bold;
+    line-height: 1.2;
+}
+
+.company-ar {
+    font-size: 18px;
+    direction: rtl;
+    font-family: "Arial", "Tahoma";
+}
+:root {
+    --brand-blue: #1f3b6f;
+}
+
+/* Company name color */
+.company-name {
+    color: var(--brand-blue);
+}
+
+/* Arabic name */
+.company-ar {
+    color: var(--brand-blue);
+}
+
+/* Header bottom border */
+.header {
+    border-bottom: 2px solid var(--brand-blue);
+}
+
+/* Invoice title */
+.invoice-title {
+    background: var(--brand-blue);
+}
+
+/* Table header */
+table th {
+    background: #eef2fa;
+    color: var(--brand-blue);
+}
+
+/* Grand total bar */
+.total-row.grand-total {
+    background: var(--brand-blue);
+}
+
     </style>
 </head>
 <body>
@@ -192,16 +259,37 @@
     
     <div class="invoice-container">
         <!-- Header -->
-        <div class="header">
-            <div class="company-name">{{ company.company_name_en }}</div>
-            {% if company.company_name_ar %}
-            <div class="company-name" style="font-size: 18px;">{{ company.company_name_ar }}</div>
+        <div class="header header-flex">
+
+            {% if company.logo %}
+                <div class="logo-box">
+                    <img src="{{ company.logo.url }}" alt="Company Logo" class="logo-img">
+                </div>
             {% endif %}
-            <div class="company-details">
-                {{ company.address_line1 }}{% if company.address_line2 %}, {{ company.address_line2 }}{% endif %}<br>
-                Phone: {{ company.phone }} | Mobile: {{ company.mobile }}<br>
-                Email: {{ company.email }}
-                {% if company.trn_number %} | TRN: {{ company.trn_number }}{% endif %}
+
+            <div class="company-text">
+                <div class="company-name">
+                    {{ company.company_name_en }}
+                </div>
+
+                {% if company.company_name_ar %}
+                    <div class="company-name company-ar">
+                        {{ company.company_name_ar }}
+                    </div>
+                {% endif %}
+
+                <div class="company-details">
+                    {{ company.address_line1 }},
+                    {% if company.address_line2 %}{{ company.address_line2 }}{% endif %},<br>
+                    {% if company.address_line3 %} {{ company.address_line3 }}{% endif %}
+                    <br>
+                    Tel: {{ company.phone }} |
+                    Mobile: {{ company.mobile }}<br>
+                    Email: {{ company.email }}
+                    {% if company.trn_number %}
+                        | TRN: {{ company.trn_number }}
+                    {% endif %}
+                </div>
             </div>
         </div>
         

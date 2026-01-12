@@ -30,15 +30,35 @@ class CompanyProfile(models.Model):
     def __str__(self):
         return self.company_name_en
 
+    # @classmethod
+    # def get_company(cls):
+    #     """Get or create single company instance"""
+    #     return cls.objects.first() or cls.objects.create(
+    #         company_name_en="Default Company",
+    #         address_line1="Address",
+    #         phone="000000",
+    #         mobile="000000",
+    #         email="info@company.com"
+    #     )
     @classmethod
     def get_company(cls):
         """Get or create single company instance"""
-        return cls.objects.first() or cls.objects.create(
-            company_name_en="Default Company",
-            address_line1="Address",
-            phone="000000",
-            mobile="000000",
-            email="info@company.com"
+        company = cls.objects.first()
+        if company:
+            return company
+
+        return cls.objects.create(
+            company_name_en="WAFEEN GENERAL TRADING EST",
+            company_name_ar="مؤسسة وافين للتجارة العامة",
+            logo="loggo.jpeg",
+            address_line1="Al Mubarak Building - 2nd Floor, Office No: 3",
+            address_line2="Jleeb Al Shyouk, P.O Box: 92356",
+            address_line3="Al Firdous, Kuwait - 40090",
+            phone="24332064",
+            fax="24342062",
+            mobile="+96597691984",
+            email="afsal@wafeen.com",
+            trn_number=""
         )
 
 
