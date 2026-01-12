@@ -97,10 +97,15 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Default Discount (%)</label>
-                            <input type="number" name="discount_percent" class="form-control"
-                                   step="0.01" min="0" max="100"
-                                   value="{% if customer %}{{ customer.discount_percent }}{% else %}0{% endif %}"
-                                   placeholder="0.00">
+                                    <input type="text"
+                                        name="discount_percent"
+                                        class="form-control"
+                                        id="discountPercent"
+                                        value="{% if customer %}{{ customer.discount_percent }}{% else %}0{% endif %}"
+                                        inputmode="decimal"
+                                        maxlength="6"
+                                        oninput="validateDiscount(this)"
+                                        placeholder="0.00">
                             <small class="text-muted">Applied automatically on invoices for this customer</small>
                         </div>
 
@@ -173,6 +178,7 @@ function toggleCreditLimit() {
 document.addEventListener('DOMContentLoaded', function() {
     toggleCreditLimit();
 });
+
 function validateCreditLimit(input) {
     let value = input.value;
 
@@ -205,5 +211,49 @@ function validateCreditLimit(input) {
             : integerPart;
 }
 
+function validateDiscount(input) {
+    let value = input.value;
+
+    // Allow only digits and dot
+    value = value.replace(/[^0-9.]/g, '');
+
+    // Allow only one dot
+    const parts = value.split('.');
+    if (parts.length > 2) {
+        value = parts[0] + '.' + parts.slice(1).join('');
+    }
+
+    let integerPart = parts[0] || '';
+    let decimalPart = parts[1] || '';
+
+    // Max 3 digits before decimal
+    if (integerPart.length > 3) {
+        integerPart = integerPart.slice(0, 3);
+    }
+
+    // Max 2 decimal places
+    if (decimalPart.length > 2) {
+        decimalPart = decimalPart.slice(0, 2);
+    }
+
+    let numberValue = parseFloat(
+        value.includes('.') ? `${integerPart}.${decimalPart}` : integerPart
+    );
+
+    // FORCE MAX = 100
+    if (!isNaN(numberValue) && numberValue > 100) {
+        input.value = '100';
+        return;
+    }
+
+    // Prevent 100.xx
+    if (integerPart === '100') {
+        decimalPart = '';
+    }
+
+    input.value = value.includes('.')
+        ? `${integerPart}.${decimalPart}`
+        : integerPart;
+}
 </script>
 {% endblock %}
