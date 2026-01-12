@@ -885,10 +885,12 @@ function renderItems() {
                             −
                         </button>
 
-                        <input type="number"
+                        <input type="text"
                             class="qty-input"
                             value="${item.quantity}"
-                            min="1"
+                            inputmode="numeric"
+                            maxlength="8"
+                            oninput="validateQtyInput(this)"
                             onchange="setQty(${item.id}, this.value)">
 
                         <button class="qty-btn plus" onclick="changeQty(${item.id}, 1)">
@@ -1290,6 +1292,19 @@ function validatePriceInput(input) {
         value.includes('.')
             ? `${integerPart}.${decimalPart}`
             : integerPart;
+}
+function validateQtyInput(input) {
+    let value = input.value;
+
+    //  Allow digits only
+    value = value.replace(/[^0-9]/g, '');
+
+    //  Max 8 digits
+    if (value.length > 8) {
+        value = value.slice(0, 8);
+    }
+
+    input.value = value;
 }
 
 </script>
