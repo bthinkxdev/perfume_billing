@@ -85,10 +85,14 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Credit Limit</label>
-                            <input type="number" name="credit_limit" id="creditLimit" class="form-control" 
-                                   step="0.01" min="0"
-                                   value="{% if customer %}{{ customer.credit_limit }}{% else %}0{% endif %}"
-                                   placeholder="0.00">
+                        <input type="text"
+                            class="form-control"
+                            name="credit_limit"
+                            id="creditLimit"
+                            value="{% if customer %}{{ customer.credit_limit }}{% else %}0{% endif %}"
+                            inputmode="decimal"
+                            maxlength="11"
+                            oninput="validateCreditLimit(this)">
                             <small class="text-muted">Maximum credit allowed for this customer</small>
                         </div>
                         <div class="col-md-6">
@@ -169,5 +173,37 @@ function toggleCreditLimit() {
 document.addEventListener('DOMContentLoaded', function() {
     toggleCreditLimit();
 });
+function validateCreditLimit(input) {
+    let value = input.value;
+
+    // Allow only digits and dot
+    value = value.replace(/[^0-9.]/g, '');
+
+    // Allow only ONE dot
+    const parts = value.split('.');
+    if (parts.length > 2) {
+        value = parts[0] + '.' + parts.slice(1).join('');
+    }
+
+    let integerPart = parts[0] || '';
+    let decimalPart = parts[1] || '';
+
+    // Max 8 digits before decimal
+    if (integerPart.length > 8) {
+        integerPart = integerPart.slice(0, 8);
+    }
+
+    // Max 2 digits after decimal
+    if (decimalPart.length > 2) {
+        decimalPart = decimalPart.slice(0, 2);
+    }
+
+    // Rebuild value
+    input.value =
+        value.includes('.')
+            ? `${integerPart}.${decimalPart}`
+            : integerPart;
+}
+
 </script>
 {% endblock %}
