@@ -903,12 +903,15 @@ function renderItems() {
                             −
                         </button>
 
-                        <input type="number"
+                        <input type="text"
                             class="price-input"
                             value="${item.unit_price.toFixed(2)}"
-                            min="0"
-                            step="0.01"
-                            onchange="setPrice(${item.id}, this.value)">
+                            inputmode="decimal"
+                            maxlength="11"
+                            oninput="validatePriceInput(this)"
+                            onchange="setPrice(${item.id}, this.value)"
+                            onblur="formatPrice(${item.id}, this.value)"
+                        >
 
                         <button class="price-btn plus" onclick="changePrice(${item.id}, 1)">
                             +
@@ -1255,6 +1258,38 @@ function setPrice(itemId, value) {
     item.amount = item.quantity * item.unit_price;
     renderItems();
     calculateTotals();
+}
+function validatePriceInput(input) {
+    let value = input.value;
+
+    // Remove invalid characters (allow digits + dot)
+    value = value.replace(/[^0-9.]/g, '');
+
+    // Allow only ONE dot
+    const parts = value.split('.');
+    if (parts.length > 2) {
+        value = parts[0] + '.' + parts.slice(1).join('');
+    }
+
+    // Split integer & decimal safely
+    let integerPart = parts[0] || '';
+    let decimalPart = parts[1] || '';
+
+    // Max 8 digits before dot
+    if (integerPart.length > 8) {
+        integerPart = integerPart.slice(0, 8);
+    }
+
+    // Max 2 digits after dot
+    if (decimalPart.length > 2) {
+        decimalPart = decimalPart.slice(0, 2);
+    }
+
+    // Rebuild value (allow dot even if decimals empty)
+    input.value =
+        value.includes('.')
+            ? `${integerPart}.${decimalPart}`
+            : integerPart;
 }
 
 </script>
