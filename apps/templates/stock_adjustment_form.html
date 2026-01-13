@@ -61,10 +61,15 @@
 
                         <div class="col-md-6">
                             <label class="form-label">Quantity <span class="text-danger">*</span></label>
-                            <input type="number" name="quantity" id="quantityInput" class="form-control" 
-                                   step="0.01" min="0.01" required placeholder="Enter quantity" 
-                                   onchange="updateNewStock()">
-                        </div>
+                            <input type="text"
+                                name="quantity"
+                                id="quantityInput"
+                                class="form-control"
+                                inputmode="decimal"
+                                placeholder="Enter quantity"
+                                required
+                                oninput="validateQuantity(this); updateNewStock();">
+                                                    </div>
                     </div>
 
                     <!-- New Stock Preview -->
@@ -171,5 +176,40 @@ window.addEventListener('DOMContentLoaded', (event) => {
         updateProductInfo();
     }
 });
+
+function validateQuantity(input) {
+    let value = input.value;
+
+    // Allow only digits and dot
+    value = value.replace(/[^0-9.]/g, '');
+
+    // Prevent more than one dot
+    const dotCount = (value.match(/\./g) || []).length;
+    if (dotCount > 1) {
+        value = value.substring(0, value.length - 1);
+    }
+
+    // Split integer & decimal
+    let [intPart, decPart] = value.split('.');
+
+    // Limit integer to 8 digits
+    if (intPart.length > 8) {
+        intPart = intPart.slice(0, 8);
+    }
+
+    // Limit decimal to 2 digits
+    if (decPart !== undefined) {
+        decPart = decPart.slice(0, 2);
+        value = `${intPart}.${decPart}`;
+    } else {
+        value = intPart;
+    }
+
+    // Enforce total length max 11
+    value = value.slice(0, 11);
+
+    input.value = value;
+}
+
 </script>
 {% endblock %}
