@@ -1375,7 +1375,7 @@ function formatDiscount() {
 function validatePriceInput(input) {
     let value = input.value;
 
-    // Remove invalid characters (allow digits + dot)
+    // Allow only digits and dot
     value = value.replace(/[^0-9.]/g, '');
 
     // Allow only ONE dot
@@ -1384,39 +1384,43 @@ function validatePriceInput(input) {
         value = parts[0] + '.' + parts.slice(1).join('');
     }
 
-    // Split integer & decimal safely
     let integerPart = parts[0] || '';
     let decimalPart = parts[1] || '';
 
-    // Max 8 digits before dot
-    if (integerPart.length > 8) {
-        integerPart = integerPart.slice(0, 8);
+    // ✅ Max 5 digits before decimal
+    if (integerPart.length > 5) {
+        integerPart = integerPart.slice(0, 5);
     }
 
-    // Max 2 digits after dot
+    // Max 2 digits after decimal
     if (decimalPart.length > 2) {
         decimalPart = decimalPart.slice(0, 2);
     }
 
-    // Rebuild value (allow dot even if decimals empty)
-    input.value =
-        value.includes('.')
-            ? `${integerPart}.${decimalPart}`
-            : integerPart;
+    input.value = value.includes('.')
+        ? `${integerPart}.${decimalPart}`
+        : integerPart;
 }
+
 function validateQtyInput(input) {
     let value = input.value;
 
-    //  Allow digits only
+    // Allow digits only
     value = value.replace(/[^0-9]/g, '');
 
-    //  Max 8 digits
-    if (value.length > 8) {
-        value = value.slice(0, 8);
+    // ✅ Max 4 digits
+    if (value.length > 4) {
+        value = value.slice(0, 4);
+    }
+
+    // Prevent empty or zero
+    if (value === '' || value === '0') {
+        value = '1';
     }
 
     input.value = value;
 }
+
 function validateCreditLimit(input) {
     let value = input.value;
 
