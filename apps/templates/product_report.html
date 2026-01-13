@@ -200,24 +200,33 @@
 <!-- PRINT CONTAINER -->
 <div class="print-area">
 
-    <!-- PRINT HEADER (NO CARD, NO BORDER) -->
+    <!-- PRINT HEADER -->
     <div class="print-header">
-        <div class="text-center">
-            <div class="company-name">{{ company.company_name_en }}</div>
-
-            {% if company.company_name_ar %}
-            <div class="company-name company-ar">
-                {{ company.company_name_ar }}
-            </div>
+        <div style="display:flex; align-items:center; gap:12px; justify-content:center;">
+            
+            {% if company.logo %}
+                <img src="{{ company.logo.url }}" alt="Company Logo"
+                     style="max-height:70px;">
             {% endif %}
 
-            <div class="company-details">
-                {{ company.address_line1 }}{% if company.address_line2 %}, {{ company.address_line2 }}{% endif %}<br>
-                Phone: {{ company.phone }} | Mobile: {{ company.mobile }}<br>
-                Email: {{ company.email }}
-                {% if company.trn_number %} | TRN: {{ company.trn_number }}{% endif %}
+            <div>
+                <div class="company" style="color:#1f3c88;">
+                    {{ company.company_name_en }}
+                </div>
+                {% if company.company_name_ar %}
+                    <div class="company" style="color:#1f3c88;">
+                        {{ company.company_name_ar }}
+                    </div>
+                {% endif %}
             </div>
-            <hr>
+
+        </div>
+
+        <div class="company-small" style="margin-top:6px;">
+            {{ company.address_line1 }}{% if company.address_line2 %}, {{ company.address_line2 }}{% endif %}{% if company.address_line3 %}, {{ company.address_line3 }}{% endif %}<br>
+            Phone: {{ company.phone }} | Mobile: {{ company.mobile }}
+            {% if company.email %} | Email: {{ company.email }}{% endif %}
+            {% if company.trn_number %} | TRN: {{ company.trn_number }}{% endif %}
         </div>
     </div>
 
@@ -228,6 +237,10 @@
             <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
                 <i class="bi bi-printer"></i> Print
             </button>
+        </div>
+
+        <div class="report-title">
+            <strong>Product Performance Report</strong>
         </div>
 
         <div class="card-body p-0">
@@ -295,79 +308,240 @@
 
 {% block extra_css %}
 <style>
+@page {
+    size: A4 portrait;
+    margin: 12mm;
+}
+
 /* Screen view */
 .print-header,
-.print-footer {
+.print-footer,
+.report-title {
     display: none;
 }
 
 @media print {
+
+    /* Reset page */
+    html, body {
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
     /* Force black & white */
     * {
-        color: #000 
-        background: transparent 
-        box-shadow: none 
-        text-shadow: none 
+        color: #000;
+        background: transparent;
+        box-shadow: none;
+        text-shadow: none;
     }
 
+    /* Hide everything first */
     body * {
-        visibility: hidden 
+        visibility: hidden;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
+    /* Reset main-content for print */
+    .main-content {
+        margin-left: 0 !important;
+        min-height: 0 !important;
+    }
+
+    /* Hide sidebar and topbar */
+    .sidebar,
+    .topbar,
+    .no-print,
+    .breadcrumb {
+        display: none !important;
+    }
+
+    /* Show printable content */
     .print-area,
     .print-area * {
-        visibility: visible 
-    }
-
-    .print-header {
-        display: block 
-        margin-bottom: 12px;
-        text-align: center;
-    }
-    
-    .print-footer {
-        display: block 
-        margin-top: 15px;
-        padding-top: 8px;
-        border-top: 1px solid #000; /* BLACK SEPARATOR LINE */
-        text-align: center;
-        font-size: 11px;
-        color: #333;
+        visibility: visible !important;
     }
 
     .print-area {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-    }
-        /* Hide STATUS column (8th column) in print */
-    table th:nth-child(8),
-    table td:nth-child(8) {
-        display: none 
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
     }
 
-    .no-print,
-    .sidebar,
-    .topbar,
-    .breadcrumb {
-        display: none 
+    /* Ensure footer is visible */
+    .print-footer,
+    .print-footer * {
+        visibility: visible !important;
     }
 
+    /* ===== HEADER ===== */
+    .print-header {
+        display: block;
+        text-align: center;
+        margin-top: 20px;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #000;
+    }
+
+    .print-header .company {
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+    .print-header .company-small {
+        font-size: 11px;
+        line-height: 1.4;
+    }
+
+    /* Report title spacing */
+    .card-header {
+        display: none !important;
+    }
+
+    .report-title {
+        display: block !important;
+        padding: 12px 0 !important;
+        margin-bottom: 15px !important;
+        font-size: 14px;
+        text-align: left;
+    }
+
+    /* ===== FOOTER ===== */
+    .print-footer {
+        display: block !important;
+        text-align: center !important;
+        font-size: 10px !important;
+        border-top: 1px solid #000 !important;
+        padding-top: 15px !important;
+        margin-top: 30px !important;
+    }
+
+    .print-footer p {
+        margin: 5px 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Prevent table overlap */
+    .card-body {
+        padding-bottom: 10px;
+    }
+
+    /* Table styling */
     table {
         font-size: 11px;
+        border-collapse: collapse !important;
+        width: 100%;
+    }
+
+    /* Table wrapper for clean borders */
+    .table-responsive {
+        overflow: visible !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    th, td {
+        border: 0.25pt solid #666 !important;
+        padding: 8px 10px !important;
+        text-align: left;
+    }
+
+    th {
+        background: #e9ecef !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 9px;
+        letter-spacing: 0.3px;
+        text-align: center;
+    }
+
+    td {
+        vertical-align: middle;
+        font-size: 10px;
+    }
+
+    /* Numeric columns right-aligned */
+    td:nth-child(n+3),
+    th:nth-child(n+3) {
+        text-align: right;
+    }
+
+    /* First column left aligned */
+    td:first-child,
+    th:first-child {
+        text-align: left;
+    }
+
+    /* Prevent row breaking */
+    tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    thead {
+        display: table-header-group;
+    }
+
+    tbody {
+        display: table-row-group;
+    }
+
+    /* Alternating row colors */
+    tbody tr:nth-child(even) {
+        background: #f8f9fa !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* Hide STATUS column (8th column) in print */
+    table th:nth-child(8),
+    table td:nth-child(8) {
+        display: none !important;
+    }
+
+    /* Force table colors to print */
+    table,
+    thead,
+    tbody,
+    tr,
+    th,
+    td {
+        color: #000 !important;
+    }
+
+    th {
+        font-weight: bold;
+    }
+
+    /* Remove Bootstrap text colors */
+    .text-success,
+    .text-danger,
+    .text-info,
+    .text-primary,
+    .text-warning {
+        color: #000 !important;
+    }
+
+    /* Badge styling - remove border, simple text */
+    .badge {
+        color: #000 !important;
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        font-weight: normal !important;
+        font-size: 11px !important;
     }
 
     .card {
-        border: 1px solid #000 
-        box-shadow: none 
-    }
-        /* FORCE PURE BLACK & WHITE */
-    .print-area * {
-        color: #000 
-        background: transparent 
-        box-shadow: none 
-        text-shadow: none 
+        border: none !important;
+        box-shadow: none !important;
     }
 }
 </style>
