@@ -50,7 +50,7 @@ class CompanyProfile(models.Model):
         return cls.objects.create(
             company_name_en="WAFEEN GENERAL TRADING EST",
             company_name_ar="مؤسسة وافين للتجارة العامة",
-            logo="loggo.jpeg",
+            logo="company/loggo.jpeg",
             address_line1="Al Mubarak Building - 2nd Floor, Office No: 3",
             address_line2="Jleeb Al Shyouk, P.O Box: 92356",
             address_line3="Al Firdous, Kuwait - 40090",
@@ -694,9 +694,9 @@ class PurchaseOrder(models.Model):
     order_date = models.DateField(default=timezone.now)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='ORDERED')
 
-    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    subtotal = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    grand_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    grand_total = models.DecimalField(max_digits=18, decimal_places=2, default=0)
 
     notes = models.TextField(blank=True)
 
@@ -768,7 +768,7 @@ class PurchaseItem(models.Model):
     description = models.CharField(max_length=500)
     quantity = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)])
     unit_cost = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
