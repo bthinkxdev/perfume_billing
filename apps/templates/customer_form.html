@@ -291,7 +291,7 @@ function validatePhone(input) {
 
     const help = document.getElementById('phoneHelp');
 
-    /* ✅ REMOVE SERVER ERROR IMMEDIATELY */
+    /* REMOVE SERVER ERROR IMMEDIATELY */
     input.classList.remove('is-invalid');
 
     const serverError = input.parentElement.querySelector('.invalid-feedback');
@@ -299,7 +299,7 @@ function validatePhone(input) {
         serverError.remove(); // fully remove from DOM
     }
 
-    /* ✅ CLIENT-SIDE VALIDATION */
+    /* CLIENT-SIDE VALIDATION */
     if (value.length > 0 && value.length < 8) {
         help.textContent = 'Phone number must be at least 8 digits';
         help.classList.remove('d-none');
