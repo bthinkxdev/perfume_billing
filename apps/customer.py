@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db import IntegrityError
 from django.db.models import Q, Sum, Count, F, DecimalField
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
@@ -17,6 +18,24 @@ from .models import (
 
 
 # ==================== CUSTOMERS ====================
+def _validate_phone(phone):
+    """
+    Validate phone number:
+    - digits only
+    - length between 8 and 15
+    """
+    if not phone:
+        raise ValueError("Phone number is required")
+
+    phone = phone.strip()
+
+    if not phone.isdigit():
+        raise ValueError("Phone number must contain digits only")
+
+    if len(phone) < 8 or len(phone) > 15:
+        raise ValueError("Phone number must be between 8 and 15 digits")
+
+    return phone
 
 def _parse_discount_percent(raw_value):
     """Validate and parse discount percent (0-100)."""
@@ -98,84 +117,90 @@ def customers_list(request):
 
 @login_required
 def customer_create(request):
-    """Create new customer"""
+    phone_error = None
+
     if request.method == 'POST':
         try:
+            phone = _validate_phone(request.POST.get('phone'))
+
+            if Customer.objects.filter(phone=phone).exists():
+                phone_error = "Phone number already exists."
+                raise ValueError
+
             discount_percent = _parse_discount_percent(request.POST.get('discount_percent'))
             customer = Customer.objects.create(
                 customer_type=request.POST.get('customer_type'),
                 name=request.POST.get('name'),
                 company_name=request.POST.get('company_name', ''),
                 address=request.POST.get('address', ''),
-                phone=request.POST.get('phone'),
+                phone=phone,
                 email=request.POST.get('email', ''),
                 credit_limit=Decimal(request.POST.get('credit_limit', 0)),
                 discount_percent=discount_percent,
             )
-            
-            # Log activity
-            ActivityLog.log_activity(
-                user=request.user,
-                action_type='CREATE',
-                model_name='Customer',
-                object_id=customer.id,
-                description=f"Created customer: {customer.customer_id} - {customer.name}",
-                request=request
-            )
-            
-            messages.success(request, f'Customer {customer.customer_id} created successfully!')
+            messages.success(
+                request, f'Customer {customer.customer_id} created successfully!')
             return redirect('apps:customers_list')
-            
+        except ValueError:
+            pass
         except Exception as e:
-            messages.error(request, f'Error creating customer: {str(e)}')
-    
-    context = {
+            messages.error(request, str(e))
+    return render(request, 'customer_form.html', {
         'customer_types': Customer.CUSTOMER_TYPE_CHOICES,
-    }
-    return render(request, 'customer_form.html', context)
+        'phone_error': phone_error,
+        'form_data': request.POST,
+    })
 
 
 @login_required
 def customer_edit(request, pk):
-    """Edit existing customer"""
     customer = get_object_or_404(Customer, pk=pk)
     
     if request.method == 'POST':
         try:
-            discount_percent = _parse_discount_percent(request.POST.get('discount_percent'))
+            phone = _validate_phone(request.POST.get('phone'))
+
+            if Customer.objects.filter(phone=phone).exclude(pk=customer.pk).exists():
+                messages.error(request, "Phone number already exists.")
+                return render(request, 'customer_form.html', {
+                    'customer': customer,
+                    'customer_types': Customer.CUSTOMER_TYPE_CHOICES,
+                    'is_edit': True,
+                })
+
+            discount_percent = _parse_discount_percent(
+                request.POST.get('discount_percent')
+            )
             customer.customer_type = request.POST.get('customer_type')
             customer.name = request.POST.get('name')
             customer.company_name = request.POST.get('company_name', '')
             customer.address = request.POST.get('address', '')
-            customer.phone = request.POST.get('phone')
+            customer.phone = phone
             customer.email = request.POST.get('email', '')
             customer.credit_limit = Decimal(request.POST.get('credit_limit', 0))
             customer.discount_percent = discount_percent
             customer.is_active = request.POST.get('is_active') == 'on'
             customer.save()
-            
-            # Log activity
-            ActivityLog.log_activity(
-                user=request.user,
-                action_type='UPDATE',
-                model_name='Customer',
-                object_id=customer.id,
-                description=f"Updated customer: {customer.customer_id}",
-                request=request
+
+            messages.success(
+                request, f'Customer {customer.customer_id} updated successfully!'
             )
-            
-            messages.success(request, f'Customer {customer.customer_id} updated successfully!')
             return redirect('apps:customer_detail', pk=customer.id)
-            
+
+        except ValueError as e:
+            messages.error(request, str(e))
+
+        except IntegrityError:
+            messages.error(request, "Phone number already exists.")
+
         except Exception as e:
-            messages.error(request, f'Error updating customer: {str(e)}')
-    
-    context = {
+            messages.error(request, str(e))
+
+    return render(request, 'customer_form.html', {
         'customer': customer,
         'customer_types': Customer.CUSTOMER_TYPE_CHOICES,
         'is_edit': True,
-    }
-    return render(request, 'customer_form.html', context)
+    })
 
 
 @login_required

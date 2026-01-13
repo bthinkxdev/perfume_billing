@@ -52,12 +52,32 @@
                         </div>
 
                         <!-- Phone -->
-                        <div class="col-md-6">
-                            <label class="form-label">Phone Number <span class="text-danger">*</span></label>
-                            <input type="tel" name="phone" class="form-control" required 
-                                   value="{% if customer %}{{ customer.phone }}{% endif %}"
-                                   placeholder="Mobile Number">
+                       <div class="col-md-6">
+                        <label class="form-label">
+                            Phone Number <span class="text-danger">*</span>
+                        </label>
+
+                        <input type="tel"
+                            name="phone"
+                            id="phoneInput"
+                            class="form-control {% if phone_error %}is-invalid{% endif %}"
+                            required
+                            maxlength="15"
+                            inputmode="numeric"
+                            value="{% if form_data.phone %}{{ form_data.phone }}{% elif customer %}{{ customer.phone }}{% endif %}"
+                            placeholder="Enter phone number"
+                            oninput="validatePhone(this)">
+
+                        <!-- SERVER ERROR -->
+                        {% if phone_error %}
+                        <div class="invalid-feedback d-block">
+                            {{ phone_error }}
                         </div>
+                        {% endif %}
+
+                        <!-- CLIENT ERROR -->
+                        <small id="phoneHelp" class="text-danger d-none"></small>
+                    </div>
 
                         <!-- Email -->
                         <div class="col-md-6">
@@ -254,6 +274,38 @@ function validateDiscount(input) {
     input.value = value.includes('.')
         ? `${integerPart}.${decimalPart}`
         : integerPart;
+}
+
+function validatePhone(input) {
+    let value = input.value;
+
+    // Allow digits only
+    value = value.replace(/[^0-9]/g, '');
+
+    // Max 15 digits
+    if (value.length > 15) {
+        value = value.slice(0, 15);
+    }
+
+    input.value = value;
+
+    const help = document.getElementById('phoneHelp');
+
+    /* ✅ REMOVE SERVER ERROR IMMEDIATELY */
+    input.classList.remove('is-invalid');
+
+    const serverError = input.parentElement.querySelector('.invalid-feedback');
+    if (serverError) {
+        serverError.remove(); // fully remove from DOM
+    }
+
+    /* ✅ CLIENT-SIDE VALIDATION */
+    if (value.length > 0 && value.length < 8) {
+        help.textContent = 'Phone number must be at least 8 digits';
+        help.classList.remove('d-none');
+    } else {
+        help.classList.add('d-none');
+    }
 }
 </script>
 {% endblock %}
