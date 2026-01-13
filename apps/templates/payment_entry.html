@@ -58,11 +58,15 @@
                         <!-- Amount -->
                         <div class="col-md-6">
                             <label class="form-label">Payment Amount <span class="text-danger">*</span></label>
-                            <input type="number" name="amount" id="amountInput" class="form-control" 
-                                   step="0.01" min="0.01" required 
-                                   placeholder="Enter amount"
-                                   {% if invoice %}max="{{ invoice.balance_due }}"{% endif %}
-                                   onchange="validateAmount()">
+                            <input type="text"
+                                name="amount"
+                                id="amountInput"
+                                class="form-control"
+                                placeholder="Enter amount"
+                                inputmode="decimal"
+                                autocomplete="off"
+                                oninput="amountInputHandler(this)"
+                                required>
                             <div id="amountError" class="text-danger mt-1" style="display: none;"></div>
                         </div>
 
@@ -232,20 +236,48 @@ document.getElementById('invoiceResults').addEventListener('click', function(e) 
 });
 
 function validateAmount() {
-    const amount = parseFloat(document.getElementById('amountInput').value);
+    const input = document.getElementById('amountInput');
     const errorDiv = document.getElementById('amountError');
-    
+    const value = input.value;
+
+    if (!value) {
+        errorDiv.textContent = 'Amount is required';
+        errorDiv.style.display = 'block';
+        input.classList.add('is-invalid');
+        return false;
+    }
+
+    // Regex: 1–8 digits, optional . and 1–2 decimals
+    const amountRegex = /^\d{1,8}(\.\d{1,2})?$/;
+
+    if (!amountRegex.test(value)) {
+        errorDiv.textContent = 'Enter up to 8 digits and 2 decimals only';
+        errorDiv.style.display = 'block';
+        input.classList.add('is-invalid');
+        return false;
+    }
+
+    const amount = parseFloat(value);
+
+    if (amount <= 0) {
+        errorDiv.textContent = 'Amount must be greater than zero';
+        errorDiv.style.display = 'block';
+        input.classList.add('is-invalid');
+        return false;
+    }
+
     if (amount > currentBalance) {
         errorDiv.textContent = `Amount cannot exceed balance due (${currentBalance.toFixed(2)})`;
         errorDiv.style.display = 'block';
-        document.getElementById('amountInput').classList.add('is-invalid');
+        input.classList.add('is-invalid');
         return false;
-    } else {
-        errorDiv.style.display = 'none';
-        document.getElementById('amountInput').classList.remove('is-invalid');
-        return true;
     }
+
+    errorDiv.style.display = 'none';
+    input.classList.remove('is-invalid');
+    return true;
 }
+
 
 function setQuickAmount(type) {
     const amountInput = document.getElementById('amountInput');
@@ -280,5 +312,33 @@ document.getElementById('paymentForm').addEventListener('submit', function(e) {
         alert('Please enter a valid payment amount');
     }
 });
+
+function amountInputHandler(input) {
+    let value = input.value;
+
+    // Remove invalid characters (allow digits and dot only)
+    value = value.replace(/[^0-9.]/g, '');
+
+    // Allow only ONE dot
+    const parts = value.split('.');
+    if (parts.length > 2) {
+        value = parts[0] + '.' + parts[1];
+    }
+
+    // Limit digits before decimal to 8
+    if (parts[0].length > 8) {
+        parts[0] = parts[0].slice(0, 8);
+    }
+
+    // Limit digits after decimal to 2
+    if (parts[1]) {
+        parts[1] = parts[1].slice(0, 2);
+    }
+
+    value = parts.join('.');
+
+    input.value = value;
+}
+
 </script>
 {% endblock %}
