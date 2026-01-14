@@ -59,17 +59,27 @@
                             </select>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label">Quantity <span class="text-danger">*</span></label>
-                            <input type="text"
-                                name="quantity"
-                                id="quantityInput"
-                                class="form-control"
-                                inputmode="decimal"
-                                placeholder="Enter quantity"
-                                required
-                                oninput="validateQuantity(this); updateNewStock();">
-                                                    </div>
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    Quantity <span class="text-danger">*</span>
+                                </label>
+
+                                <input type="text"
+                                    name="quantity"
+                                    id="quantityInput"
+                                    class="form-control"
+                                    inputmode="numeric"
+                                    placeholder="Enter quantity"
+                                    required
+                                    oninput="validateQuantity(this); updateNewStock();">
+
+                                <!-- Helper text -->
+                                <small class="text-muted">
+                                    Maximum allowed: <strong>9999</strong>
+                                </small>
+                            </div>
+
+
                     </div>
 
                     <!-- New Stock Preview -->
@@ -142,7 +152,7 @@ function updateNewStock() {
     const select = document.getElementById('productSelect');
     const option = select.options[select.selectedIndex];
     const adjustmentType = document.querySelector('select[name="adjustment_type"]').value;
-    const quantity = parseFloat(document.getElementById('quantityInput').value) || 0;
+    const quantity = parseInt(document.getElementById('quantityInput').value, 10) || 0;
     
     if (option.value && adjustmentType && quantity > 0) {
         const currentStock = parseFloat(option.getAttribute('data-stock'));
@@ -154,7 +164,7 @@ function updateNewStock() {
             newStock = currentStock - quantity;
         }
         
-        document.getElementById('newStock').textContent = newStock.toFixed(2);
+        document.getElementById('newStock').textContent = newStock;
         document.getElementById('newStockPreview').style.display = 'block';
         
         // Change color based on result
@@ -180,33 +190,21 @@ window.addEventListener('DOMContentLoaded', (event) => {
 function validateQuantity(input) {
     let value = input.value;
 
-    // Allow only digits and dot
-    value = value.replace(/[^0-9.]/g, '');
+    // Allow ONLY digits (no dot, no decimal)
+    value = value.replace(/[^0-9]/g, '');
 
-    // Prevent more than one dot
-    const dotCount = (value.match(/\./g) || []).length;
-    if (dotCount > 1) {
-        value = value.substring(0, value.length - 1);
+    // Remove leading zeros
+    value = value.replace(/^0+/, '');
+
+    // Limit max value to 9999
+    if (parseInt(value || '0', 10) > 9999) {
+        value = '9999';
     }
 
-    // Split integer & decimal
-    let [intPart, decPart] = value.split('.');
-
-    // Limit integer to 8 digits
-    if (intPart.length > 8) {
-        intPart = intPart.slice(0, 8);
+    // Limit length to 4 digits
+    if (value.length > 4) {
+        value = value.slice(0, 4);
     }
-
-    // Limit decimal to 2 digits
-    if (decPart !== undefined) {
-        decPart = decPart.slice(0, 2);
-        value = `${intPart}.${decPart}`;
-    } else {
-        value = intPart;
-    }
-
-    // Enforce total length max 11
-    value = value.slice(0, 11);
 
     input.value = value;
 }

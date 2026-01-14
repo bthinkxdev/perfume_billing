@@ -27,7 +27,12 @@
                     <div class="row g-3">
                         <!-- SKU & Barcode -->
                         <div class="col-md-6">
-                            <label class="form-label">SKU / Item No <span class="text-danger">*</span></label>
+                            <label class="form-label d-flex justify-content-between align-items-center">
+                                <span>
+                                    SKU / Item No <span class="text-danger">*</span>
+                                </span>
+                            </label>
+
                             <input type="text" name="sku" class="form-control" required 
                                    value="{% if product %}{{ product.sku }}{% endif %}"
                                    placeholder="e.g., PERF001"
@@ -66,7 +71,12 @@
 
                         <!-- Fragrance Name -->
                         <div class="col-md-6">
-                            <label class="form-label">Fragrance Name <span class="text-danger">*</span></label>
+                            <label class="form-label d-flex justify-content-between align-items-center">
+                                <span>
+                                    Fragrance Name <span class="text-danger">*</span>
+                                </span>
+                            </label>
+
                             <input type="text" name="fragrance_name" class="form-control" required 
                                    value="{% if product %}{{ product.fragrance_name }}{% endif %}"
                                    placeholder="e.g., Black Orchid"
@@ -112,6 +122,9 @@
                                    value="{% if product %}{{ product.cost_price }}{% endif %}"
                                    placeholder="0.00"
                                    autocomplete="off">
+                                <small class="text-muted">
+                                    Maximum allowed price: <strong>₹99,999.99</strong>
+                                </small>
                             <div class="invalid-feedback"></div>
                         </div>
                         <div class="col-md-4">
@@ -142,10 +155,14 @@
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label">Opening Stock</label>
-                            <input type="text" name="stock_qty" class="form-control" inputmode="decimal"
-                                   value="{% if product %}{{ product.stock_qty }}{% else %}0{% endif %}"
-                                   {% if is_edit %}readonly{% endif %}
-                                   autocomplete="off">
+                            <input type="text"
+                                name="stock_qty"
+                                class="form-control"
+                                inputmode="numeric"
+                                pattern="[0-9]*"
+                                value="{% if product %}{{ product.stock_qty }}{% else %}0{% endif %}"
+                                {% if is_edit %}readonly{% endif %}
+                                autocomplete="off">
                             <div class="invalid-feedback"></div>
                             {% if is_edit %}
                             <small class="text-muted">Use Stock Adjustment to modify stock</small>
@@ -237,6 +254,7 @@
 
 {% block extra_js %}
 <script>
+const MAX_PRICE = 99999.99;
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('productForm');
     if (!form) return;
@@ -293,20 +311,20 @@ document.addEventListener('DOMContentLoaded', () => {
             label: 'Cost Price',
             required: true,
             positive: true,
-            maxDigits: 10,      // max_digits=10 from model
-            decimalPlaces: 2,   // decimal_places=2 from model
-            maxIntDigits: 8,    // 10 - 2 = 8 integer digits
-            maxValue: 99999999.99
+            maxDigits: 7,        // 5 integer + 2 decimal
+            decimalPlaces: 2,
+            maxIntDigits: 5,     // 99999
+            maxValue: MAX_PRICE
         },
         wholesale_price: {
             type: 'decimal',
             label: 'Wholesale Price',
             required: true,
             positive: true,
-            maxDigits: 10,
+            maxDigits: 7,
             decimalPlaces: 2,
-            maxIntDigits: 8,
-            maxValue: 99999999.99,
+            maxIntDigits: 5,
+            maxValue: MAX_PRICE,
             minField: 'cost_price',
             minFieldLabel: 'Cost Price'
         },
@@ -315,22 +333,20 @@ document.addEventListener('DOMContentLoaded', () => {
             label: 'Retail Price',
             required: true,
             positive: true,
-            maxDigits: 10,
+            maxDigits: 7,
             decimalPlaces: 2,
-            maxIntDigits: 8,
-            maxValue: 99999999.99,
+            maxIntDigits: 5,
+            maxValue: MAX_PRICE,
             minField: 'wholesale_price',
             minFieldLabel: 'Wholesale Price'
         },
         stock_qty: {
-            type: 'decimal',
+            type: 'integer',
             label: 'Opening Stock',
             required: false,
             nonNegative: true,
-            maxDigits: 10,
-            decimalPlaces: 2,
-            maxIntDigits: 8,
-            maxValue: 99999999.99
+            maxIntDigits: 4,
+            maxValue: 9999
         },
         reorder_level: {
             type: 'decimal',
@@ -389,128 +405,87 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ==================== INPUT RESTRICTION HANDLERS ====================
 
-    // Restrict input to only allow certain characters (real-time blocking)
     const restrictInput = (field, rule) => {
+
+        // ================= INTEGER =================
+        if (rule.type === 'integer') {
+            field.addEventListener('keypress', (e) => {
+                const char = e.key;
+
+                // Allow control/navigation keys
+                if (
+                    e.ctrlKey || e.metaKey ||
+                    ['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(char)
+                ) return;
+
+                //  Block non-digits (blocks "." automatically)
+                if (!/^[0-9]$/.test(char)) {
+                    e.preventDefault();
+                    return;
+                }
+
+                //  Block more than max digits
+                if (
+                    rule.maxIntDigits &&
+                    field.selectionStart === field.selectionEnd &&
+                    field.value.length >= rule.maxIntDigits
+                ) {
+                    e.preventDefault();
+                }
+            });
+
+            // Handle paste
+            field.addEventListener('paste', (e) => {
+                e.preventDefault();
+                let paste = (e.clipboardData || window.clipboardData).getData('text');
+                paste = paste.replace(/\D/g, '');
+
+                if (rule.maxIntDigits) {
+                    paste = paste.substring(0, rule.maxIntDigits);
+                }
+
+                document.execCommand('insertText', false, paste);
+            });
+        }
+
+        // ================= DECIMAL =================
         if (rule.type === 'decimal') {
-            // Allow only digits, one decimal point, and navigation keys
             field.addEventListener('keypress', (e) => {
                 const char = e.key;
                 const value = field.value;
                 const selStart = field.selectionStart;
                 const selEnd = field.selectionEnd;
 
-                // Allow control keys
                 if (e.ctrlKey || e.metaKey) return;
+                if (['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(char)) return;
 
-                // Allow navigation keys
-                if (['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(char)) {
-                    return;
-                }
-
-                // Allow minus at start for non-positive fields (though we use nonNegative)
-                // For this form, we don't allow negative, so block minus
-
-                // Block if not a digit or decimal
                 if (!/^[0-9.]$/.test(char)) {
                     e.preventDefault();
                     return;
                 }
 
-                // Only one decimal point allowed
                 if (char === '.' && value.includes('.')) {
                     e.preventDefault();
                     return;
                 }
 
-                // Limit decimal places
                 const decimalIdx = value.indexOf('.');
                 if (decimalIdx !== -1 && selStart > decimalIdx) {
                     const decimalPart = value.substring(decimalIdx + 1);
-                    // If selection is not replacing, check decimal places
                     if (selStart === selEnd && decimalPart.length >= (rule.decimalPlaces || 2)) {
                         e.preventDefault();
-                        return;
                     }
                 }
 
-                // Limit integer part digits
                 if (char !== '.') {
-                    const parts = value.split('.');
-                    const intPart = parts[0] || '';
+                    const intPart = value.split('.')[0] || '';
                     if (decimalIdx === -1 || selStart <= decimalIdx) {
-                        // Adding to integer part
                         if (selStart === selEnd && intPart.length >= (rule.maxIntDigits || 8)) {
                             e.preventDefault();
-                            return;
                         }
                     }
                 }
             });
-
-            // Handle paste - validate and clean pasted content
-            field.addEventListener('paste', (e) => {
-                e.preventDefault();
-                const paste = (e.clipboardData || window.clipboardData).getData('text');
-                const cleaned = paste.replace(/[^0-9.]/g, '');
-                
-                // Ensure only one decimal point
-                const parts = cleaned.split('.');
-                let result = parts[0];
-                if (parts.length > 1) {
-                    result += '.' + parts.slice(1).join('').substring(0, rule.decimalPlaces || 2);
-                }
-                
-                // Limit integer digits
-                const intPart = result.split('.')[0];
-                if (intPart.length > (rule.maxIntDigits || 8)) {
-                    result = intPart.substring(0, rule.maxIntDigits || 8) + (result.includes('.') ? '.' + result.split('.')[1] : '');
-                }
-                
-                document.execCommand('insertText', false, result);
-            });
-        }
-
-        if (rule.type === 'text' && rule.maxLength) {
-            // Enforce maxlength
-            field.setAttribute('maxlength', rule.maxLength);
-
-            // Block invalid characters based on pattern
-            if (rule.pattern) {
-                field.addEventListener('keypress', (e) => {
-                    const char = e.key;
-                    
-                    // Allow control keys
-                    if (e.ctrlKey || e.metaKey) return;
-                    if (['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(char)) {
-                        return;
-                    }
-
-                    // Test single character against a simplified pattern
-                    const testPattern = rule.pattern.source.replace(/[\^\$\*\+]/g, '');
-                    const charPattern = new RegExp(`[${testPattern.replace(/\[|\]/g, '')}]`);
-                    
-                    if (!charPattern.test(char)) {
-                        e.preventDefault();
-                    }
-                });
-
-                // Handle paste for text fields with pattern
-                field.addEventListener('paste', (e) => {
-                    setTimeout(() => {
-                        const value = field.value;
-                        if (!rule.pattern.test(value)) {
-                            // Clean the value
-                            const allowedChars = rule.pattern.source.replace(/[\^\$\*\+\[\]]/g, '');
-                            const cleanPattern = new RegExp(`[^${allowedChars}]`, 'g');
-                            field.value = value.replace(cleanPattern, '');
-                        }
-                        // Enforce max length
-                        if (field.value.length > rule.maxLength) {
-                            field.value = field.value.substring(0, rule.maxLength);
-                        }
-                    }, 0);
-                });
-            }
         }
     };
 
@@ -521,7 +496,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!field) return true;
 
         const raw = (field.value || '').trim();
+        if (rule.type === 'integer') {
+            if (!/^\d+$/.test(raw)) {
+                if (showErrors) showError(field, `${rule.label} must be a whole number.`);
+                return false;
+            }
 
+            const num = parseInt(raw, 10);
+
+            if (rule.nonNegative && num < 0) {
+                if (showErrors) showError(field, `${rule.label} cannot be negative.`);
+                return false;
+            }
+
+            if (rule.maxValue && num > rule.maxValue) {
+                if (showErrors) showError(field, `${rule.label} must not exceed ${rule.maxValue}.`);
+                return false;
+            }
+        }
         // Required validation
         if (rule.required && raw === '') {
             if (showErrors) showError(field, `${rule.label} is required.`);

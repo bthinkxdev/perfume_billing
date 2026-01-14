@@ -278,11 +278,11 @@ class Invoice(models.Model):
     payment_terms = models.CharField(max_length=10, choices=PAYMENT_TERMS, default='CASH')
     
     # Amounts
-    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    grand_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    balance_due = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    grand_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    balance_due = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     
     # Notes
     notes = models.TextField(blank=True)
@@ -403,7 +403,7 @@ class InvoiceItem(models.Model):
     
     quantity = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)])
     unit_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
     
     # Price override tracking
     is_price_overridden = models.BooleanField(default=False)

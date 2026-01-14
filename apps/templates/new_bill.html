@@ -876,18 +876,22 @@ function searchProduct(query) {
 
 function addItem(product) {
     const price =
-        selectedCustomer && selectedCustomer.customer_type === 'WHOLESALE' ? product.wholesale_price : product.retail_price;
+        selectedCustomer && selectedCustomer.customer_type === 'WHOLESALE'
+            ? product.wholesale_price
+            : product.retail_price;
 
-    //  Check if product already exists in items
-    const existingItem = items.find(
-        item => item.product_id === product.id
-    );
+    const existingItem = items.find(item => item.product_id === product.id);
+
     if (existingItem) {
-        //  Increment quantity
+        if (existingItem.quantity >= 9999) {
+            existingItem.quantity = 9999;
+            showLimitMessage('Maximum quantity allowed is 9,999');
+            return;
+        }
+
         existingItem.quantity += 1;
         existingItem.amount = existingItem.quantity * existingItem.unit_price;
     } else {
-        //  Add new item
         itemCounter++;
         items.push({
             id: itemCounter,
@@ -901,10 +905,12 @@ function addItem(product) {
             stock_qty: product.stock_qty
         });
     }
+
     renderItems();
     calculateTotals();
     $('#barcodeInput').focus();
 }
+
 
 
 function renderItems() {
@@ -943,9 +949,10 @@ function renderItems() {
                             class="qty-input"
                             value="${item.quantity}"
                             inputmode="numeric"
-                            maxlength="8"
-                            oninput="validateQtyInput(this)"
-                            onchange="setQty(${item.id}, this.value)">
+                            maxlength="4"
+                            oninput="sanitizeQtyInput(this)"
+                            onblur="setQty(${item.id}, this.value)">
+
 
                         <button class="qty-btn plus" onclick="changeQty(${item.id}, 1)">
                             +
@@ -1266,16 +1273,23 @@ function changeQty(itemId, delta) {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
 
-    item.quantity += delta;
+    let newQty = item.quantity + delta;
 
-    if (item.quantity < 1) {
-        item.quantity = 1;
+    if (newQty < 1) newQty = 1;
+
+    if (newQty > 9999) {
+        newQty = 9999;
+        showLimitMessage('Maximum quantity allowed is 9,999');
     }
 
+    item.quantity = newQty;
     item.amount = item.quantity * item.unit_price;
+
     renderItems();
     calculateTotals();
 }
+
+
 
 function setQty(itemId, value) {
     const item = items.find(i => i.id === itemId);
@@ -1295,28 +1309,45 @@ function changePrice(itemId, delta) {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
 
-    item.unit_price = parseFloat(item.unit_price) + delta;
+    let newPrice = parseFloat(item.unit_price) + delta;
 
-    if (item.unit_price < 0) {
-        item.unit_price = 0;
+    if (newPrice < 0) newPrice = 0;
+
+    if (newPrice > 99999.99) {
+        newPrice = 99999.99;
+        showLimitMessage('Maximum unit price allowed is ₹99,999.99');
     }
 
+    item.unit_price = parseFloat(newPrice.toFixed(2));
     item.amount = item.quantity * item.unit_price;
+
     renderItems();
     calculateTotals();
 }
+
+
 function setPrice(itemId, value) {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
 
     let price = parseFloat(value);
-    if (isNaN(price) || price < 0) price = 0;
 
-    item.unit_price = price;
+    if (isNaN(price) || price < 0) {
+        price = 0;
+    }
+
+    if (price > 99999.99) {
+        price = 99999.99;
+        showLimitMessage('Maximum unit price allowed is ₹99,999.99');
+    }
+
+    item.unit_price = parseFloat(price.toFixed(2));
     item.amount = item.quantity * item.unit_price;
+
     renderItems();
     calculateTotals();
 }
+
 
 function changeDiscount(delta) {
     let discount = parseFloat($('#discountPercent').val());
@@ -1387,7 +1418,7 @@ function validatePriceInput(input) {
     let integerPart = parts[0] || '';
     let decimalPart = parts[1] || '';
 
-    // ✅ Max 5 digits before decimal
+    //  Max 5 digits before decimal
     if (integerPart.length > 5) {
         integerPart = integerPart.slice(0, 5);
     }
@@ -1402,24 +1433,35 @@ function validatePriceInput(input) {
         : integerPart;
 }
 
-function validateQtyInput(input) {
-    let value = input.value;
-
-    // Allow digits only
-    value = value.replace(/[^0-9]/g, '');
-
-    // ✅ Max 4 digits
-    if (value.length > 4) {
-        value = value.slice(0, 4);
-    }
-
-    // Prevent empty or zero
-    if (value === '' || value === '0') {
-        value = '1';
-    }
-
-    input.value = value;
+// Allow typing freely, only clean characters
+function sanitizeQtyInput(input) {
+    input.value = input.value.replace(/[^0-9]/g, '');
 }
+
+// Enforce rules ONLY when user finishes editing
+function setQty(itemId, value) {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    let qty = parseInt(value, 10);
+
+    if (isNaN(qty) || qty < 1) {
+        qty = 1;
+    }
+
+    if (qty > 9999) {
+        qty = 9999;
+        showLimitMessage('Maximum quantity allowed is 9,999');
+    }
+
+    item.quantity = qty;
+    item.amount = item.quantity * item.unit_price;
+
+    renderItems();
+    calculateTotals();
+}
+
+
 
 function validateCreditLimit(input) {
     let value = input.value;
@@ -1451,6 +1493,25 @@ function validateCreditLimit(input) {
         value.includes('.')
             ? `${integerPart}.${decimalPart}`
             : integerPart;
+}
+function showLimitMessage(message) {
+    // simple non-blocking message
+    const msg = document.createElement('div');
+    msg.textContent = message;
+    msg.style.position = 'fixed';
+    msg.style.bottom = '20px';
+    msg.style.right = '20px';
+    msg.style.background = '#fee2e2';
+    msg.style.color = '#991b1b';
+    msg.style.padding = '10px 14px';
+    msg.style.borderRadius = '6px';
+    msg.style.fontWeight = '600';
+    msg.style.boxShadow = '0 4px 10px rgba(0,0,0,0.15)';
+    msg.style.zIndex = 9999;
+
+    document.body.appendChild(msg);
+
+    setTimeout(() => msg.remove(), 2000);
 }
 
 </script>
