@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import JsonResponse
 from django.utils import timezone
-
+from django.db.models import Q
 from .models import Supplier, Product, PurchaseOrder, PurchaseItem, ActivityLog
 from .permissions import permission_required
 
@@ -46,13 +46,24 @@ def purchase_orders_list(request):
 @login_required
 @permission_required('purchase_orders.access')
 def purchase_order_new(request):
-    suppliers = Supplier.objects.filter(is_active=True) if hasattr(Supplier, 'is_active') else Supplier.objects.all()
-    products = Product.objects.filter(is_active=True).values('id', 'sku', 'description')
+    suppliers = Supplier.objects.filter(is_active=True)
+
+    new_product_id = request.GET.get('new_product_id')
+
+    products_qs = Product.objects.filter(is_active=True).filter(
+        Q(is_from_LPO=False) |
+        Q(is_from_LPO=True, received_LPO=True)
+    )
+
+    if new_product_id:
+        products_qs = products_qs | Product.objects.filter(id=new_product_id)
+
     today = timezone.now().date().strftime('%Y-%m-%d')
     return render(request, 'purchase_order_form.html', {
         'suppliers': suppliers,
-        'products': list(products),
+        'products': list(products_qs.values('id', 'sku', 'description')),
         'today': today,
+        'new_product_id': new_product_id,
     })
 
 
@@ -165,7 +176,10 @@ def purchase_order_receive(request, pk):
     if po.status in ['RECEIVED', 'CANCELLED']:
         return JsonResponse({'success': False, 'error': 'PO already finalized'})
     po.receive(user=request.user)
-    return JsonResponse({'success': True, 'message': 'PO marked as received and stock updated'})
+    return JsonResponse({
+        'success': True,
+        'message': 'PO marked as received and stock updated'
+    })
 
 
 @login_required

@@ -269,10 +269,12 @@ def search_product(request):
     
     # Search by barcode first, then SKU, then description
     product = Product.objects.filter(
+        Q(is_from_LPO=False) |
+        Q(is_from_LPO=True, received_LPO=True),
         Q(barcode=query) | Q(sku=query),
         is_active=True
     ).first()
-    
+        
     if not product:
         # Try fuzzy search in description
         product = Product.objects.filter(

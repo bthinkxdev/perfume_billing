@@ -154,20 +154,25 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-4">
-                            <label class="form-label">Opening Stock</label>
-                            <input type="text"
-                                name="stock_qty"
-                                class="form-control"
-                                inputmode="numeric"
-                                pattern="[0-9]*"
-                                value="{% if product %}{{ product.stock_qty }}{% else %}0{% endif %}"
-                                {% if is_edit %}readonly{% endif %}
-                                autocomplete="off">
-                            <div class="invalid-feedback"></div>
-                            {% if is_edit %}
-                            <small class="text-muted">Use Stock Adjustment to modify stock</small>
+                            <label>Opening Stock</label>
+
+                            {% if from_lpo %}
+                                <input type="number"
+                                    class="form-control"
+                                    value="0"
+                                    disabled>
+
+                                <small class="text-warning">
+                                    Stock will be added when Purchase Order is received
+                                </small>
+                            {% else %}
+                                <input type="number"
+                                    name="stock_qty"
+                                    class="form-control"
+                                    value="{{ product.stock_qty|default:0 }}">
                             {% endif %}
                         </div>
+
                         <div class="col-md-4">
                             <label class="form-label">Reorder Level</label>
                             <input type="text" name="reorder_level" class="form-control" inputmode="decimal"

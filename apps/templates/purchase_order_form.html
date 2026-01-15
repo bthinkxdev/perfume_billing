@@ -57,7 +57,6 @@
                     <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes"></textarea>
                 </div>
             </div>
-
             <div class="table-responsive mb-3">
                 <table class="table table-bordered align-middle" id="itemsTable">
                     <thead class="table-light">
@@ -100,9 +99,10 @@
 {% block extra_js %}
 {{ products|json_script:"productsData" }}
 <script>
+
 const products = JSON.parse(document.getElementById('productsData').textContent);
 let rowId = 0;
-
+const newProductId = "{{ new_product_id|default:'' }}";
 function addRow() {
     if (document.getElementById('emptyRow')) {
         document.getElementById('emptyRow').remove();
@@ -117,7 +117,12 @@ function addRow() {
         <td>
             <select class="form-select product-select" name="product_id" onchange="syncDescription(this)">
                 <option value="">Custom / Not listed</option>
-                ${products.map(p => `<option value="${p.id}" data-desc="${p.description}">${p.sku} - ${p.description}</option>`).join('')}
+                <option value="__new__">➕ Add New Product (LPO)</option>
+                ${products.map(p => `
+                    <option value="${p.id}" data-desc="${p.description}">
+                        ${p.sku} - ${p.description}
+                    </option>
+                `).join('')}
             </select>
             <small class="text-muted small">Select product or leave empty to type a custom item.</small>
         </td>
@@ -151,13 +156,19 @@ function removeRow(id) {
 }
 
 function syncDescription(select) {
+    if (select.value === '__new__') {
+        window.location.href =
+            "{% url 'apps:product_create' %}?from_lpo=1&return_to_po=1";
+        return;
+    }
+
     const desc = select.selectedOptions[0]?.dataset.desc || '';
     const row = select.closest('tr');
     if (select.value) {
         row.querySelector('input[name="description"]').value = desc;
     }
-    updateAmount(select);
 }
+
 
 function updateAmount(el) {
     const row = el.closest('tr');
@@ -343,6 +354,26 @@ function validateDecimal(input) {
     input.value = value;
 }
 
+
+document.addEventListener('DOMContentLoaded', function () {
+    if (newProductId) {
+        addRow();
+        const lastRow = document.querySelector('#itemsBody tr:last-child');
+        const select = lastRow.querySelector('.product-select');
+        select.value = newProductId;
+        select.dispatchEvent(new Event('change'));
+    }
+});
+function validatePhone(input) {
+    // Allow digits only
+    let value = input.value.replace(/\D/g, '');
+
+    // Limit to 15 digits
+    value = value.slice(0, 15);
+
+    input.value = value;
+}
+
 </script>
 
 <!-- Supplier Quick Add Modal -->
@@ -356,12 +387,19 @@ function validateDecimal(input) {
       <div class="modal-body">
         <form id="supplierForm">
             <div class="mb-3">
-                <label class="form-label">Name *</label>
+                <label class="form-label">Name  <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" id="supName" required>
             </div>
             <div class="mb-3">
-                <label class="form-label">Phone *</label>
-                <input type="text" class="form-control" id="supPhone" required>
+                <label class="form-label">Phone <span class="text-danger">*</span></label>
+                <input type="text"
+                    class="form-control"
+                    id="supPhone"
+                    required
+                    inputmode="numeric"
+                    maxlength="15"
+                    oninput="validatePhone(this)">
+                <small class="text-muted">Enter up to 15 digits</small>
             </div>
             <div class="mb-3">
                 <label class="form-label">Company</label>

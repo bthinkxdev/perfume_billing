@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.db.models import Q, Sum, F, Count
 from django.http import JsonResponse
 from django.core.paginator import Paginator
+from django.urls import reverse
 from .models import (
     Product, Brand, Supplier, StockAdjustment, 
     ActivityLog, InvoiceItem
@@ -17,7 +18,10 @@ from decimal import Decimal
 @login_required
 def products_list(request):
     """List all products with search and filters"""
-    products = Product.objects.select_related('brand', 'supplier').all()
+    products = Product.objects.filter(
+        Q(is_from_LPO=False) |
+        Q(is_from_LPO=True, received_LPO=True),
+        is_active=True).select_related('brand', 'supplier')
     
     # Search
     search = request.GET.get('search', '')
@@ -74,18 +78,20 @@ def products_list(request):
 @login_required
 @permission_required('products.manage')
 def product_create(request):
-    """Create new product"""
+    from_lpo = request.GET.get('from_lpo') == '1'
+    return_to_po = request.GET.get('return_to_po') == '1'
+
     if request.method == 'POST':
         try:
-            # Get or create brand
+            # Brand
             brand_id = request.POST.get('brand')
-            if brand_id:
-                brand = Brand.objects.get(id=brand_id)
+            brand = Brand.objects.get(id=brand_id)
+
+            if from_lpo:
+                stock_qty = Decimal('0')
             else:
-                brand_name = request.POST.get('brand_name')
-                brand, _ = Brand.objects.get_or_create(name=brand_name)
-            
-            # Create product
+                stock_qty = Decimal(request.POST.get('stock_qty', 0))
+
             product = Product.objects.create(
                 sku=request.POST.get('sku'),
                 barcode=request.POST.get('barcode') or None,
@@ -96,40 +102,39 @@ def product_create(request):
                 cost_price=Decimal(request.POST.get('cost_price')),
                 wholesale_price=Decimal(request.POST.get('wholesale_price')),
                 retail_price=Decimal(request.POST.get('retail_price')),
-                stock_qty=Decimal(request.POST.get('stock_qty', 0)),
+                stock_qty=stock_qty,
                 reorder_level=Decimal(request.POST.get('reorder_level', 0)),
                 batch_no=request.POST.get('batch_no', ''),
+                is_from_LPO=from_lpo,
+                received_LPO=False,
             )
             
-            # Optional supplier
             supplier_id = request.POST.get('supplier')
             if supplier_id:
                 product.supplier_id = supplier_id
                 product.save()
-            
-            # Log activity
             ActivityLog.log_activity(
                 user=request.user,
                 action_type='CREATE',
                 model_name='Product',
                 object_id=product.id,
-                description=f"Created product: {product.sku} - {product.fragrance_name}",
+                description=f"Created product {product.sku}",
                 request=request
             )
-            
-            messages.success(request, f'Product {product.sku} created successfully!')
+            messages.success(request, "Product created successfully")
+
+            if return_to_po:
+                return redirect(f"{reverse('apps:purchase_order_new')}?new_product_id={product.id}")
+
+
             return redirect('apps:products_list')
-            
         except Exception as e:
-            messages.error(request, f'Error creating product: {str(e)}')
-    
-    brands = Brand.objects.filter(is_active=True).order_by('name')
-    suppliers = Supplier.objects.filter(is_active=True).order_by('name')
-    
+            messages.error(request, str(e))
     context = {
-        'brands': brands,
-        'suppliers': suppliers,
+        'brands': Brand.objects.filter(is_active=True),
+        'suppliers': Supplier.objects.filter(is_active=True),
         'concentration_choices': Product.CONCENTRATION_CHOICES,
+        'from_lpo': from_lpo
     }
     return render(request, 'product_form.html', context)
 
@@ -165,7 +170,8 @@ def product_edit(request, pk):
             
             supplier_id = request.POST.get('supplier')
             product.supplier_id = supplier_id if supplier_id else None
-            
+            if product.is_from_LPO:
+                pass 
             product.save()
             
             # Log activity
@@ -256,7 +262,11 @@ def product_detail(request, pk):
 @login_required
 def inventory_list(request):
     """Stock overview with filters"""
-    products = Product.objects.select_related('brand', 'supplier').filter(is_active=True)
+    products = Product.objects.select_related('brand', 'supplier').filter(
+    Q(is_from_LPO=False) |
+    Q(is_from_LPO=True, received_LPO=True),
+    is_active=True
+)
     
     # Search
     search = request.GET.get('search', '')
@@ -346,7 +356,7 @@ def stock_adjustment(request):
         except Exception as e:
             messages.error(request, f'Error adjusting stock: {str(e)}')
     
-    products = Product.objects.filter(is_active=True).select_related('brand').order_by('brand__name', 'fragrance_name')
+    products = Product.objects.filter( Q(is_from_LPO=False) | Q(is_from_LPO=True, received_LPO=True),is_active=True).select_related('brand').order_by('brand__name', 'fragrance_name')
     
     context = {
         'products': products,
@@ -359,8 +369,9 @@ def stock_adjustment(request):
 def stock_history(request):
     """View all stock adjustments"""
     adjustments = StockAdjustment.objects.select_related(
-        'product', 'product__brand', 'created_by'
-    ).order_by('-created_at')
+    'product', 'product__brand', 'created_by').filter(
+    Q(product__is_from_LPO=False) |
+    Q(product__is_from_LPO=True, product__received_LPO=True)).order_by('-created_at')
     
     # Filters
     product_id = request.GET.get('product')
@@ -397,6 +408,8 @@ def ajax_product_search(request):
         Q(sku__icontains=search) |
         Q(barcode__icontains=search) |
         Q(fragrance_name__icontains=search),
+        Q(is_from_LPO=False) |
+        Q(is_from_LPO=True, received_LPO=True),
         is_active=True,
         stock_qty__gt=0
     ).select_related('brand')[:10]

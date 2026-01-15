@@ -402,7 +402,7 @@ def product_report(request):
     date_to = request.GET.get('date_to', '')
     
     # Base query
-    products = Product.objects.select_related('brand', 'supplier').annotate(
+    products = Product.objects.filter(Q(is_from_LPO=False) | Q(is_from_LPO=True, received_LPO=True), is_active=True).select_related('brand', 'supplier').annotate(
         total_sold=Coalesce(
             Sum('invoiceitem__quantity', 
                 filter=Q(invoiceitem__invoice__status='CONFIRMED')),

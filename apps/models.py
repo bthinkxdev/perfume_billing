@@ -4,7 +4,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from decimal import Decimal
 import uuid
-
+from django.db import transaction
 
 class CompanyProfile(models.Model):
     """Single instance company header configuration"""
@@ -138,7 +138,7 @@ class Supplier(models.Model):
     name = models.CharField(max_length=255)
     company_name = models.CharField(max_length=255, blank=True)
     address = models.TextField(blank=True)
-    phone = models.CharField(max_length=20)
+    phone = models.CharField(max_length=20) 
     email = models.EmailField(blank=True)
     
     outstanding_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -220,6 +220,9 @@ class Product(models.Model):
     batch_no = models.CharField(max_length=50, blank=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True)
     purchase_date = models.DateField(null=True, blank=True)
+    
+    is_from_LPO = models.BooleanField(default=False)
+    received_LPO = models.BooleanField(default=False)
     
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -739,27 +742,27 @@ class PurchaseOrder(models.Model):
         self.grand_total = self.subtotal - self.discount_amount
         self.save(update_fields=['subtotal', 'grand_total'])
 
-    def receive(self, user=None):
-        """Mark as received and update inventory."""
-        if self.status == 'RECEIVED' or self.status == 'CANCELLED':
-            return False
-        for item in self.items.all():
-            product = item.product
-            product.stock_qty += item.quantity
-            product.save()
-        self.status = 'RECEIVED'
-        self.received_at = timezone.now()
-        self.save(update_fields=['status', 'received_at'])
-        if user:
-            ActivityLog.log_activity(
-                user=user,
-                action_type='UPDATE',
-                model_name='PurchaseOrder',
-                object_id=self.po_number,
-                description=f'Received PO {self.po_number}'
-            )
-        return True
+    def receive(self, user):
+        if self.status == 'RECEIVED':
+            return  # prevent double receive
 
+        for item in self.items.select_related('product'):
+            if not item.product:
+                continue
+
+            product = item.product
+
+            #  ADD STOCK ONLY HERE
+            product.stock_qty = (product.stock_qty or Decimal('0')) + item.quantity
+
+            #  If product created from LPO
+            if product.is_from_LPO:
+                product.received_LPO = True
+
+            product.save(update_fields=['stock_qty', 'received_LPO'])
+
+        self.status = 'RECEIVED'
+        self.save(update_fields=['status'])
 
 class PurchaseItem(models.Model):
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='items')
@@ -780,5 +783,4 @@ class PurchaseItem(models.Model):
         return f"{self.purchase_order.po_number} - Item {self.serial_no}"
 
     def save(self, *args, **kwargs):
-        self.amount = self.quantity * self.unit_cost
         super().save(*args, **kwargs)
