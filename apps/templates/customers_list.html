@@ -116,12 +116,12 @@
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary w-100">
+                    <button type="submit" class="btn btn-primary w-100 small-font-size">
                         <i class="bi bi-search"></i> Search
                     </button>
                 </div>
                 <div class="col-md-1">
-                    <a href="{% url 'apps:customers_list' %}" class="btn btn-outline-secondary w-100">
+                    <a href="{% url 'apps:customers_list' %}" class="btn btn-outline-secondary w-100 small-font-size">
                         <i class="bi bi-x-circle"></i> Clear
                     </a>
                 </div>
@@ -242,3 +242,11 @@
     </div>
 </div>
 {% endblock %}
+{% block extra_css %}
+<style>
+.small-font-size {
+    font-size: 0.75rem; /* ~12px */
+    padding: 0.8rem 0.8rem;
+}
+</style>
+{% endblock%}

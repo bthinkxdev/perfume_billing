@@ -116,13 +116,13 @@
                 <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
             </div>
             <div class="col-md-1 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-search"></i>
+                <button type="submit" class="btn btn-primary w-100 small-font-size ">
+                    <i class="bi bi-search"></i>Search
                 </button>
             </div>
 
             <div class="col-md-1 d-flex align-items-end">
-                <a href="{% url 'apps:product_report' %}" class="btn btn-secondary w-100">
+                <a href="{% url 'apps:product_report' %}" class="btn btn-secondary w-100 small-font-size ">
                 Clear
                  </a>
             </div
@@ -544,6 +544,11 @@
         box-shadow: none !important;
     }
 }
+.small-font-size {
+    font-size: 0.75rem; /* ~12px */
+    padding: 0.8rem 0.8rem;
+}
+
 </style>
 {% endblock %}
 
