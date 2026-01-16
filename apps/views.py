@@ -67,6 +67,9 @@ def dashboard(request):
     low_stock = Product.objects.filter(
         is_active=True,
         stock_qty__lte=F('reorder_level')
+    ).filter(
+        Q(is_from_LPO=False) |
+        Q(is_from_LPO=True, received_LPO=True)
     ).count()
     # Purchases last 30 days for quick insight
     from .models import PurchaseOrder
