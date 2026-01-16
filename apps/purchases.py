@@ -6,7 +6,7 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.utils import timezone
 from django.db.models import Q
-from .models import Supplier, Product, PurchaseOrder, PurchaseItem, ActivityLog
+from .models import Supplier, Product, PurchaseOrder, PurchaseItem, ActivityLog,CompanyProfile
 from .permissions import permission_required
 
 
@@ -162,9 +162,11 @@ def purchase_order_detail(request, pk):
 def purchase_order_print(request, pk):
     po = get_object_or_404(PurchaseOrder.objects.select_related('supplier'), pk=pk)
     items = po.items.select_related('product')
+    company = CompanyProfile.get_company()
     return render(request, 'purchase_order_print.html', {
         'po': po,
         'items': items,
+        'company': company
     })
 
 

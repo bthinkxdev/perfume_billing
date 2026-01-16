@@ -4,136 +4,323 @@
     <meta charset="UTF-8">
     <title>PO {{ po.po_number }}</title>
     <style>
-        @page { size: A4 portrait; margin: 10mm; }
-        * { box-sizing: border-box; }
+        @page {
+            size: A4 portrait;
+            margin: 15mm;
+        }
+
         body {
             font-family: Arial, sans-serif;
             font-size: 12px;
             margin: 0;
             background: #fff;
+            color: #000;
         }
-        .container {
-            width: 190mm;
-            margin: 0 auto;
-            padding: 6mm 4mm;
-        }
-        .header {
+
+        /* HEADER */
+        .company-header {
             text-align: center;
-            margin-bottom: 6mm;
+            position: relative;
         }
-        .title {
+
+        .company-header img {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 70px;
+        }
+
+        .company-name {
             font-size: 18px;
             font-weight: bold;
-            letter-spacing: 1px;
+            color: #0b2c6f;
         }
-        .meta {
+
+        .company-ar {
+            font-size: 14px;
+            margin-top: 2px;
+        }
+
+        .company-info {
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        .divider {
+            border-top: 2px solid #0b2c6f;
+            margin: 10px 0;
+        }
+
+        /* TITLE BAR */
+        .doc-title {
+            background: #1f3b6d;
+            color: #fff;
+            text-align: center;
+            font-weight: bold;
+            padding: 6px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        /* INFO GRID */
+        .info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 4mm;
-            margin-bottom: 6mm;
-        }
-        .box {
-            border: 1px solid #000;
-            padding: 3mm;
+            margin-bottom: 10px;
             font-size: 11px;
         }
+
+        .info-box {
+            line-height: 1.6;
+        }
+
+        /* TABLE */
         table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: fixed;
             font-size: 11px;
         }
+
         th, td {
             border: 1px solid #000;
-            padding: 3px 4px;
-            word-break: break-word;
+            padding: 5px;
         }
-        th { background: #f2f2f2; text-align: left; }
-        .text-end { text-align: right; }
+
+        th {
+            background: #f2f2f2;
+            text-align: center;
+        }
+
+        .text-end {
+            text-align: right;
+        }
+
+        /* TOTALS */
         .totals {
-            margin-top: 4mm;
-            width: 60%;
+            width: 45%;
             margin-left: auto;
+            margin-top: 10px;
+            font-size: 12px;
         }
+
         .totals-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            padding: 4px 6px;
+            display: flex;
+            justify-content: space-between;
+            padding: 6px;
             border: 1px solid #000;
             border-top: none;
         }
-        .totals-row:first-child { border-top: 1px solid #000; }
+
+        .totals-row:first-child {
+            border-top: 1px solid #000;
+        }
+
+        .grand {
+            background: #1f3b6d;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        /* SIGNATURE */
+        .signatures {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            margin-top: 30px;
+            text-align: center;
+            font-size: 11px;
+        }
+
+        .signature-line {
+            border-top: 1px solid #000;
+            margin: 0 20px 5px;
+        }
+
+        /* FOOTER */
+        .footer-note {
+            margin-top: 25px;
+            text-align: center;
+            font-size: 11px;
+        }
+       .print-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #4f46e5;
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.2);
+    z-index: 9999;
+}
+
+.print-btn i {
+    margin-right: 6px;
+}
+
+@media print {
+    body {
+        background: #fff;
+    }
+
+    .a4-page {
+        margin: 0;
+        box-shadow: none;
+        width: 100%;
+        min-height: auto;
+        padding: 0;
+    }
+
+    .print-btn {
+        display: none;
+    }
+}
+
+/* A4 paper preview */
+.a4-page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 20px auto;
+    background: #fff;
+    padding: 15mm;
+    box-sizing: border-box;
+    box-shadow: 0 0 10px rgba(0,0,0,0.25);
+}
+
+/* PRINT MODE */
+@media print {
+    body {
+        background: #fff;
+    }
+
+    .a4-page {
+        margin: 0;
+        box-shadow: none;
+        width: auto;
+        min-height: auto;
+        padding: 0;
+    }
+
+    .print-btn {
+        display: none;
+    }
+}
+.footer-divider {
+    border-top: 1px solid #000;
+    margin: 20px 0 10px;
+}
+
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="title">LOCAL PURCHASE ORDER</div>
-            <div style="font-size: 11px; margin-top: 2px;">{{ po.po_number }}</div>
-        </div>
+    <button class="print-btn" onclick="window.print()">
+        🖨️ Print
+    </button>
 
-        <div class="meta">
-            <div class="box">
-                <strong>Supplier</strong><br>
-                {{ po.supplier.name }}<br>
-                {% if po.supplier.company_name %}{{ po.supplier.company_name }}<br>{% endif %}
-                {{ po.supplier.phone }}<br>
-            </div>
-            <div class="box">
-                <strong>Details</strong><br>
-                Date: {{ po.order_date|date:"d M Y" }}<br>
-                Status: {{ po.get_status_display }}<br>
-                Created By: {{ po.created_by.get_full_name|default:po.created_by.username }}
-            </div>
-        </div>
+<div class="a4-page">
 
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 12mm;">#</th>
-                    <th style="width: 30mm;">SKU</th>
-                    <th>Description</th>
-                    <th style="width: 22mm;" class="text-end">Qty</th>
-                    <th style="width: 25mm;" class="text-end">Unit Cost</th>
-                    <th style="width: 28mm;" class="text-end">Amount</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in items %}
-                <tr>
-                    <td class="text-end">{{ item.serial_no }}</td>
-                    <td>{{ item.product.sku|default:"-" }}</td>
-                    <td>{{ item.description }}</td>
-                    <td class="text-end">{{ item.quantity }}</td>
-                    <td class="text-end">{{ item.unit_cost|floatformat:2 }}</td>
-                    <td class="text-end"><strong>{{ item.amount|floatformat:2 }}</strong></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <div class="totals">
-            <div class="totals-row">
-                <span>Subtotal</span>
-                <span class="text-end">{{ po.subtotal|floatformat:2 }}</span>
-            </div>
-            <div class="totals-row">
-                <span>Discount</span>
-                <span class="text-end">-{{ po.discount_amount|floatformat:2 }}</span>
-            </div>
-            <div class="totals-row">
-                <strong>Grand Total</strong>
-                <strong class="text-end">{{ po.grand_total|floatformat:2 }}</strong>
-            </div>
-        </div>
-
-        {% if po.notes %}
-        <div style="margin-top: 4mm; font-size: 11px;">
-            <strong>Notes:</strong><br>
-            {{ po.notes }}
-        </div>
+    <!-- HEADER -->
+    <div class="company-header">
+        {% if company.logo %}
+            <img src="{{ company.logo.url }}">
         {% endif %}
+
+        <div class="company-name">{{ company.company_name_en }}</div>
+        <div class="company-ar">{{ company.company_name_ar }}</div>
+
+        <div class="company-info">
+            {{ company.address_line1 }}<br>
+            {{ company.address_line2 }} {{ company.address_line3 }}<br>
+            Tel: {{ company.phone }} | Mobile: {{ company.mobile }}<br>
+            Email: {{ company.email }}
+        </div>
     </div>
+
+    <div class="divider"></div>
+
+    <!-- TITLE -->
+    <div class="doc-title">
+        LOCAL PURCHASE ORDER
+    </div>
+
+    <!-- INFO -->
+    <div class="info-grid">
+        <div class="info-box">
+            <strong>SUPPLIER:</strong><br>
+            {{ po.supplier.name }}<br>
+            {{ po.supplier.phone }}
+        </div>
+        <div class="info-box text-end">
+            <strong>PO No:</strong> {{ po.po_number }}<br>
+            <strong>Date:</strong> {{ po.order_date|date:"d/m/Y" }}<br>
+            <strong>Status:</strong> {{ po.get_status_display }}
+        </div>
+    </div>
+
+    <!-- ITEMS -->
+    <table>
+        <thead>
+            <tr>
+                <th>S No</th>
+                <th>Item</th>
+                <th>Description</th>
+                <th>Qty</th>
+                <th>Unit Cost</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td class="text-end">{{ item.serial_no }}</td>
+                <td>{{ item.product.sku|default:"-" }}</td>
+                <td>{{ item.description }}</td>
+                <td class="text-end">{{ item.quantity }}</td>
+                <td class="text-end">{{ item.unit_cost|floatformat:2 }}</td>
+                <td class="text-end">{{ item.amount|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <div class="totals-row">
+            <span>Subtotal</span>
+            <span>{{ po.subtotal|floatformat:2 }}</span>
+        </div>
+        <div class="totals-row">
+            <span>Discount</span>
+            <span>{{ po.discount_amount|floatformat:2 }}</span>
+        </div>
+        <div class="totals-row grand">
+            <span>GRAND TOTAL</span>
+            <span>{{ po.grand_total|floatformat:2 }}</span>
+        </div>
+    </div>
+
+    <!-- SIGNATURE -->
+    {% comment %} <div class="signatures">
+        <div>
+            <div class="signature-line"></div>
+            Customer Signature
+        </div>
+        <div>
+            <div class="signature-line"></div>
+            Authorized Signature
+        </div>
+    </div> {% endcomment %}
+
+    <!-- FOOTER -->
+    <div class="footer-divider"></div>
+
+<div class="footer-note">
+    <strong>Thank you for your business!</strong><br>
+    This is a computer-generated document.
+</div>
+
+</div>
 </body>
 </html>
 

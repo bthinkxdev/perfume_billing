@@ -3,54 +3,252 @@
 <head>
     <meta charset="UTF-8">
     <title>Payment Receipt - {{ payment.payment_id }}</title>
-    <style>
-        @page { size: A4 portrait; margin: 12mm; }
-        * { box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; font-size: 12px; margin: 0; background: #fff; }
-        .wrapper { width: 190mm; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 10px; }
-        .company { font-size: 18px; font-weight: bold; }
-        .company-small { font-size: 11px; color: #555; line-height: 1.4; }
-        .title { background: #000; color: #fff; text-align: center; padding: 6px; font-weight: bold; margin: 8px 0; letter-spacing: 0.5px; }
-        .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; margin: 10px 0; }
-        .box { border: 1px solid #000; padding: 4mm; font-size: 11px; }
-        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6mm; }
-        th, td { border: 1px solid #000; padding: 4px 6px; word-break: break-word; }
-        th { background: #f2f2f2; text-align: left; }
-        .text-end { text-align: right; }
-        .totals { width: 60%; margin-left: auto; margin-top: 6mm; }
-        .totals-row { display: grid; grid-template-columns: 1fr 1fr; padding: 4px 6px; border: 1px solid #000; border-top: none; }
-        .totals-row:first-child { border-top: 1px solid #000; }
-        .notes { margin-top: 6mm; font-size: 11px; }
-        .wrapper {margin: 5mm auto 0;}
-    </style>
+<style>
+
+/* ================== PAGE SETUP ================== */
+@page {
+    size: A4 portrait;
+    margin: 12mm;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+
+body {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    margin: 0;
+    background: #fff;
+    color: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* ================== WRAPPER ================== */
+.wrapper {
+    width: 100%;
+    max-width: 210mm;
+    margin: 0 auto;
+}
+
+/* ================== HEADER ================== */
+.company-header {
+    position: relative;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.company-header img {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 60px;
+}
+
+.company-name {
+    font-size: 18px;
+    font-weight: bold;
+    color: #0b2c6f;
+}
+
+.company-ar {
+    font-size: 14px;
+    margin-top: 2px;
+}
+
+.company-info {
+    font-size: 11px;
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+/* ================== TITLE ================== */
+.title {
+    background: #000;
+    color: #fff;
+    text-align: center;
+    padding: 6px;
+    font-weight: bold;
+    margin: 8px 0;
+    letter-spacing: 0.5px;
+    font-size: 13px;
+}
+
+/* ================== INFO BOXES ================== */
+.meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6mm;
+    margin: 10px 0;
+}
+
+.box {
+    border: 1px solid #000;
+    padding: 4mm;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+/* ================== TABLE ================== */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-top: 6mm;
+}
+
+th, td {
+    border: 1px solid #000;
+    padding: 5px 6px;
+    word-break: break-word;
+}
+
+th {
+    background: #f2f2f2;
+    font-weight: bold;
+    text-align: left;
+}
+
+.text-end {
+    text-align: right;
+}
+
+/* ================== TOTALS ================== */
+.totals {
+    width: 60%;
+    margin-left: auto;
+    margin-top: 6mm;
+    font-size: 11px;
+}
+
+.totals-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 5px 6px;
+    border: 1px solid #000;
+    border-top: none;
+}
+
+.totals-row:first-child {
+    border-top: 1px solid #000;
+}
+
+/* ================== NOTES ================== */
+.notes {
+    margin-top: 6mm;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+/* ================== PRINT CLEANUP ================== */
+@media print {
+    body {
+        background: #fff;
+    }
+
+    .a4-page {
+        margin: 0;
+        box-shadow: none;
+        width: auto;
+        min-height: auto;
+        padding: 0;
+    }
+
+    .print-btn {
+        display: none;
+    }
+}
+
+/* ================== PRINT BUTTON ================== */
+.print-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #4f46e5;
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.2);
+    z-index: 9999;
+}
+
+@media print {
+    .print-btn {
+        display: none;
+    }
+}
+/* ================== A4 PREVIEW ================== */
+.a4-page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 20px auto;
+    background: #fff;
+    padding: 12mm;
+    box-shadow: 0 0 12px rgba(0,0,0,0.25);
+}
+.divider {
+    border-top: 2px solid #0b2c6f;
+    margin: 10px 0;
+}
+.footer-divider {
+    border-top: 1px solid #000;
+    margin: 20px 0 10px;
+}
+        .footer-note {
+            margin-top: 25px;
+            text-align: center;
+            font-size: 11px;
+        }
+</style>
 </head>
-<body>
+<button class="print-btn" onclick="window.print()">🖨️ Print</button>
+<div class="a4-page">
     <div class="wrapper">
-        <div class="header">
-            <div class="company">{{ company.company_name_en }}</div>
-            {% if company.company_name_ar %}<div class="company">{{ company.company_name_ar }}</div>{% endif %}
-            <div class="company-small">
-                {{ company.address_line1 }}{% if company.address_line2 %}, {{ company.address_line2 }}{% endif %}{% if company.address_line3 %}, {{ company.address_line3 }}{% endif %}<br>
-                Phone: {{ company.phone }} | Mobile: {{ company.mobile }}{% if company.email %} | Email: {{ company.email }}{% endif %}{% if company.trn_number %} | TRN: {{ company.trn_number }}{% endif %}
+        <!-- HEADER -->
+        <div class="company-header">
+            {% if company.logo %}
+                <img src="{{ company.logo.url }}">
+            {% endif %}
+            <div class="company-name">{{ company.company_name_en }}</div>
+            {% if company.company_name_ar %}
+              <div class="company-ar">{{ company.company_name_ar }}</div>
+            {% endif %}
+
+            <div class="company-info">
+                {{ company.address_line1 }}
+                {% if company.address_line2 %}, {{ company.address_line2 }}{% endif %}
+                {% if company.address_line3 %}, {{ company.address_line3 }}{% endif %}<br>
+                Phone: {{ company.phone }} | Mobile: {{ company.mobile }}
+                {% if company.email %} | Email: {{ company.email }}{% endif %}
+                {% if company.trn_number %} | TRN: {{ company.trn_number }}{% endif %}
             </div>
         </div>
 
-        <div class="title">PAYMENT RECEIPTaa</div>
+        <div class="divider"></div>
 
+        <!-- TITLE -->
+        <div class="title">PAYMENT RECEIPT</div>
+
+        <!-- META 1 -->
         <div class="meta">
             <div class="box">
                 <strong>Payment</strong><br>
                 Receipt No: {{ payment.payment_id }}<br>
                 Date: {{ payment.payment_date|date:"d M Y h:i A" }}<br>
                 Method: {{ payment.get_payment_method_display }}<br>
-                Reference: {{ payment.reference_no|default:"-" }}<br>
+                Reference: {{ payment.reference_no|default:"-" }}
             </div>
             <div class="box">
                 <strong>Invoice</strong><br>
                 Invoice No: {{ invoice.invoice_number }}<br>
                 Invoice Date: {{ invoice.invoice_date|date:"d M Y" }}<br>
-                Bill Total: {{ bill_total|floatformat:2 }}<br>
+                Bill Total: {{ bill_total|floatformat:2 }}
             </div>
         </div>
 
@@ -111,6 +309,13 @@
         </div>
         {% endif %}
     </div>
+    <div class="footer-divider"></div>
+    <div class="footer-note">
+    <strong>Thank you for your business!</strong><br>
+    This is a computer-generated document.
+</div>
+</div>
+
 </body>
 </html>
 
