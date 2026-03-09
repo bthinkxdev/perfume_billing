@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.utils import timezone
 from decimal import Decimal
 import uuid
@@ -318,20 +319,34 @@ class Invoice(models.Model):
         super().save(*args, **kwargs)
 
     def generate_invoice_number(self):
-        """Generate sequential invoice number"""
+        """Generate sequential invoice number using app config."""
+        config = get_config()
+
         current_year = timezone.now().year
-        prefix = f"INV{current_year}"
-        
-        last_invoice = Invoice.objects.filter(
-            invoice_number__startswith=prefix
-        ).order_by('-invoice_number').first()
-        
-        if last_invoice:
-            last_num = int(last_invoice.invoice_number.split('-')[1])
-            new_num = last_num + 1
+
+        base_prefix = config.invoice_prefix
+        yearly_reset = config.invoice_yearly_reset
+
+        if yearly_reset:
+            prefix = f"{base_prefix}{current_year}"
         else:
-            new_num = 1
-        
+            prefix = base_prefix
+
+        last_invoice = (
+            Invoice.objects.filter(invoice_number__startswith=prefix)
+            .order_by("-invoice_number")
+            .first()
+        )
+
+        if last_invoice and "-" in last_invoice.invoice_number:
+            try:
+                last_num = int(last_invoice.invoice_number.split("-")[-1])
+            except (ValueError, IndexError):
+                last_num = 0
+        else:
+            last_num = 0
+
+        new_num = last_num + 1
         return f"{prefix}-{new_num:06d}"
 
     def calculate_totals(self):
@@ -343,15 +358,24 @@ class Invoice(models.Model):
         self.save()
 
     def confirm_invoice(self, user):
-        """Confirm invoice and update inventory"""
+        """Confirm invoice and update inventory / customer balance."""
+        config = get_config()
+
         if self.status != 'DRAFT':
             return False
-        
-        # Deduct stock
-        for item in self.items.all():
-            product = item.product
-            product.stock_qty -= item.quantity
-            product.save()
+
+        auto_stock = config.auto_stock_deduction_on_invoice
+
+        # Deduct stock if enabled
+        if auto_stock:
+            for item in self.items.all():
+                product = item.product
+                if (not config.allow_negative_stock) and product.stock_qty < item.quantity:
+                    raise ValidationError(
+                        f"Insufficient stock for {product.sku}. Available: {product.stock_qty}, required: {item.quantity}."
+                    )
+                product.stock_qty -= item.quantity
+                product.save()
         
         # Update customer balance if credit
         if self.payment_terms in ['CREDIT', 'PARTIAL'] and self.balance_due > 0:
@@ -364,15 +388,20 @@ class Invoice(models.Model):
         return True
 
     def cancel_invoice(self, user):
-        """Cancel invoice and restore inventory"""
+        """Cancel invoice and optionally restore inventory."""
+        config = get_config()
+
         if self.status != 'CONFIRMED':
             return False
-        
-        # Restore stock
-        for item in self.items.all():
-            product = item.product
-            product.stock_qty += item.quantity
-            product.save()
+
+        auto_stock = config.auto_stock_deduction_on_invoice
+
+        # Restore stock only if auto-deduction is enabled
+        if auto_stock:
+            for item in self.items.all():
+                product = item.product
+                product.stock_qty += item.quantity
+                product.save()
         
         # Update customer balance
         if self.payment_terms in ['CREDIT', 'PARTIAL'] and self.balance_due > 0:
@@ -386,11 +415,14 @@ class Invoice(models.Model):
         return True
 
     def is_overdue(self):
-        """Check if invoice payment is overdue (30 days)"""
+        """Check if invoice payment is overdue based on configured credit days."""
         if self.status != 'CONFIRMED' or self.balance_due <= 0:
             return False
         from datetime import timedelta
-        due_date = self.invoice_date + timedelta(days=30)
+        config = get_config()
+        days = int(config.default_credit_days)
+
+        due_date = self.invoice_date + timedelta(days=days)
         return timezone.now() > due_date
 
 
@@ -587,38 +619,108 @@ class StockAdjustment(models.Model):
         return f"{prefix}{new_num:06d}"
 
 
-class SystemSettings(models.Model):
-    """Global system settings"""
-    key = models.CharField(max_length=100, unique=True)
-    value = models.TextField()
-    description = models.TextField(blank=True)
-    
-    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+class AppConfig(models.Model):
+    """Typed singleton application configuration."""
+    # Invoice settings
+    invoice_prefix = models.CharField(max_length=10, default="INV")
+    invoice_yearly_reset = models.BooleanField(default=True)
+    default_payment_term = models.CharField(
+        max_length=20,
+        choices=[("CASH", "Cash"), ("CREDIT", "Credit")],
+        default="CASH",
+    )
+    default_credit_days = models.PositiveIntegerField(default=30)
+
+    # Pricing
+    allow_price_override = models.BooleanField(default=True)
+    allow_negative_stock = models.BooleanField(default=False)
+    max_discount_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("100.00"),
+        validators=[MinValueValidator(Decimal("0.00")), MaxValueValidator(Decimal("100.00"))],
+    )
+    max_price_override_limit = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("50.00"),
+        validators=[MinValueValidator(Decimal("0.00")), MaxValueValidator(Decimal("100.00"))],
+    )
+
+    # Discounts
+    enable_item_level_discount = models.BooleanField(default=True)
+    enable_bill_level_discount = models.BooleanField(default=True)
+
+    # Customer credit
+    enable_credit_sales = models.BooleanField(default=True)
+    default_credit_limit = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    block_credit_if_limit_exceeded = models.BooleanField(default=False)
+    credit_warning_only = models.BooleanField(default=True)
+
+    # Inventory
+    low_stock_alert = models.BooleanField(default=True)
+    default_reorder_level = models.PositiveIntegerField(default=10)
+    auto_stock_deduction_on_invoice = models.BooleanField(default=True)
+
+    # Printing
+    invoice_print_size = models.CharField(
+        max_length=20,
+        choices=[("A4", "A4"), ("THERMAL", "Thermal")],
+        default="A4",
+    )
+    show_barcode_on_invoice = models.BooleanField(default=True)
+    show_item_number_on_invoice = models.BooleanField(default=True)
+    invoice_footer_text = models.TextField(blank=True)
+
+    # Locale
+    currency_symbol = models.CharField(max_length=5, default="₹")
+    currency_position = models.CharField(
+        max_length=10,
+        choices=[("before", "Before"), ("after", "After")],
+        default="before",
+    )
+    timezone = models.CharField(max_length=50, default="Asia/Kolkata")
+    date_format = models.CharField(max_length=20, default="d-m-Y")
+
+    # Operational toggles
+    enable_activity_logs = models.BooleanField(default=True)
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "System Setting"
-        verbose_name_plural = "System Settings"
+        verbose_name = "Application Configuration"
+        verbose_name_plural = "Application Configuration"
 
     def __str__(self):
-        return self.key
+        return "Application Configuration"
 
-    @classmethod
-    def get_setting(cls, key, default=None):
-        """Get setting value"""
-        try:
-            return cls.objects.get(key=key).value
-        except cls.DoesNotExist:
-            return default
+    def clean(self):
+        if self.credit_warning_only and self.block_credit_if_limit_exceeded:
+            raise ValidationError(
+                "Credit warning and hard block cannot both be enabled."
+            )
 
-    @classmethod
-    def set_setting(cls, key, value, user=None):
-        """Set setting value"""
-        setting, created = cls.objects.get_or_create(key=key)
-        setting.value = str(value)
-        setting.updated_by = user
-        setting.save()
-        return setting
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Application configuration cannot be deleted.")
+
+
+def get_config():
+    config = AppConfig.objects.first()
+    if config is None:
+        raise ImproperlyConfigured(
+            "AppConfig row is missing. Run migrations to create initial configuration."
+        )
+    return config
 
 
 class ActivityLog(models.Model):
@@ -655,7 +757,11 @@ class ActivityLog(models.Model):
 
     @classmethod
     def log_activity(cls, user, action_type, model_name, object_id, description, request=None):
-        """Create activity log entry"""
+        """Create activity log entry (respects enable_activity_logs setting)."""
+        config = get_config()
+        if not config.enable_activity_logs:
+            return None
+
         log = cls(
             user=user,
             action_type=action_type,

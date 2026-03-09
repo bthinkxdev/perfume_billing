@@ -3,6 +3,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
+from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Sum, Count, Q, F
 from django.utils import timezone
@@ -12,10 +13,19 @@ from datetime import datetime, timedelta
 import json
 from django.db import transaction
 from .models import (
-    Invoice, InvoiceItem, Product, Customer, Payment,
-    CompanyProfile, PriceOverrideLog, ActivityLog
+    Invoice,
+    InvoiceItem,
+    Product,
+    Customer,
+    Payment,
+    CompanyProfile,
+    PriceOverrideLog,
+    ActivityLog,
+    get_config,
 )
 from .permissions import permission_required
+from .forms import AppConfigForm, CONFIG_SECTIONS
+from .configuration import parse_decimal
 
 
 # ==================== DASHBOARD ====================
@@ -110,6 +120,32 @@ def dashboard(request):
     return render(request, 'dashboard.html', context)
 
 
+@login_required
+@permission_required("settings.manage")
+def system_settings_view(request):
+    """
+    Configure global system settings.
+    Only users with the logical `settings.manage` permission may access this view.
+    """
+    config = get_config()
+    if request.method == "POST":
+        form = AppConfigForm(request.POST, instance=config)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Application configuration updated successfully.")
+            return redirect("apps:system_settings")
+        messages.error(request, "Please correct the validation errors below.")
+    else:
+        form = AppConfigForm(instance=config)
+
+    sections = [
+        (title, [form[field_name] for field_name in field_names])
+        for title, field_names in CONFIG_SECTIONS
+    ]
+    context = {"form": form, "sections": sections}
+    return render(request, "settings.html", context)
+
+
 # ==================== NEW BILL ====================
 @login_required
 def new_bill(request):
@@ -117,10 +153,12 @@ def new_bill(request):
     company = CompanyProfile.get_company()
     customers = Customer.objects.filter(is_active=True).order_by('name')
     
+    config = get_config()
     context = {
         'company': company,
         'customers': customers,
         'today': timezone.now().date().strftime('%Y-%m-%d'),
+        'default_payment_term': config.default_payment_term,
     }
     
     return render(request, 'new_bill.html', context)
@@ -130,6 +168,7 @@ def new_bill(request):
 @require_http_methods(["POST"])
 def save_invoice(request):
     try:
+        config = get_config()
         data = json.loads(request.body)
         customer = get_object_or_404(Customer, id=data['customer_id'])
 
@@ -147,11 +186,28 @@ def save_invoice(request):
                 'success': False,
                 'error': 'Discount cannot be negative'
             }, status=400)
-        if discount > temp_subtotal:
-            return JsonResponse({
-                'success': False,
-                'error': 'Discount cannot exceed subtotal'
-            }, status=400)
+        # Enforce max discount percentage from settings
+        max_disc = config.max_discount_percentage
+        if max_disc >= 0:
+            max_allowed_discount = (temp_subtotal * max_disc) / Decimal("100")
+            if discount > max_allowed_discount:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": f"Discount cannot exceed {max_disc}% of subtotal",
+                    },
+                    status=400,
+                )
+
+        # If bill-level discounting is disabled, block any discount
+        if discount > 0 and not config.enable_bill_level_discount:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "Bill-level discounts are disabled in system settings.",
+                },
+                status=400,
+            )
         grand_total = temp_subtotal - discount
 
         # ---------- PRE-CHECK CREDIT (BLOCK DRAFT + CONFIRM) ----------
@@ -161,6 +217,16 @@ def save_invoice(request):
                 'success': False,
                 'error': 'Invalid payment terms. Use CASH or CREDIT.'
             }, status=400)
+
+        # Enforce credit sales toggle
+        if payment_terms == "CREDIT" and not config.enable_credit_sales:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "Credit sales are disabled in system settings.",
+                },
+                status=400,
+            )
 
         # Normalize paid amount rules
         if payment_terms == 'CASH':
@@ -180,15 +246,30 @@ def save_invoice(request):
 
         balance_due = grand_total - paid_amount
 
-        if payment_terms == 'CREDIT' and balance_due > 0:
-            if not customer.can_take_credit(balance_due):
-                return JsonResponse({
-                    'success': False,
-                    'error': (
-                        f'Insufficient credit. '
-                        f'Available credit: ₹{customer.get_available_credit()}'
-                    )
-                }, status=400)
+        warning = None
+        if payment_terms == "CREDIT" and balance_due > 0:
+            block_credit = config.block_credit_if_limit_exceeded
+            warn_only = config.credit_warning_only
+
+            can_take = customer.can_take_credit(balance_due)
+            available = customer.get_available_credit()
+
+            if block_credit and not can_take:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": (
+                            "Insufficient credit. "
+                            f"Available credit: {available}"
+                        ),
+                    },
+                    status=400,
+                )
+            if warn_only and not can_take:
+                warning = (
+                    "Credit limit exceeded. "
+                    f"Available credit: {available}"
+                )
         # ---------- DB TRANSACTION ----------
         with transaction.atomic():
 
@@ -202,6 +283,9 @@ def save_invoice(request):
                 status='DRAFT'
             )
 
+            allow_override = config.allow_price_override
+            max_override_pct = config.max_price_override_limit
+
             for idx, item_data in enumerate(data['items'], 1):
                 product = get_object_or_404(Product, id=item_data['product_id'])
 
@@ -210,6 +294,50 @@ def save_invoice(request):
 
                 default_price = product.get_default_price(customer.customer_type)
                 is_overridden = unit_price != default_price
+
+                if not config.allow_negative_stock and quantity > product.stock_qty:
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "error": (
+                                f"Insufficient stock for {product.sku}. "
+                                f"Available: {product.stock_qty}, required: {quantity}."
+                            ),
+                        },
+                        status=400,
+                    )
+
+                # Enforce price override rules
+                if is_overridden and not allow_override:
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "error": "Price override is disabled in system settings.",
+                        },
+                        status=400,
+                    )
+
+                if (
+                    is_overridden
+                    and default_price
+                    and default_price != 0
+                ):
+                    diff_pct = (
+                        abs(unit_price - default_price)
+                        / default_price
+                        * Decimal("100")
+                    )
+                    if diff_pct > max_override_pct:
+                        return JsonResponse(
+                            {
+                                "success": False,
+                                "error": (
+                                    "Price override exceeds allowed limit "
+                                    f"of {max_override_pct}%."
+                                ),
+                            },
+                            status=400,
+                        )
 
                 invoice_item = InvoiceItem.objects.create(
                     invoice=invoice,
@@ -248,12 +376,16 @@ def save_invoice(request):
                     request=request
                 )
 
-        return JsonResponse({
-            'success': True,
-            'invoice_id': invoice.id,
-            'invoice_number': invoice.invoice_number,
-            'message': 'Invoice saved successfully'
-        })
+        response = {
+            "success": True,
+            "invoice_id": invoice.id,
+            "invoice_number": invoice.invoice_number,
+            "message": "Invoice saved successfully",
+        }
+        if warning:
+            response["warning"] = warning
+
+        return JsonResponse(response)
         
     except Exception as e:
         return JsonResponse({
@@ -340,6 +472,7 @@ def search_customer(request):
 def quick_add_customer(request):
     """Quick add customer via AJAX"""
     try:
+        config = get_config()
         data = json.loads(request.body)
         discount_percent = Decimal(data.get('discount_percent', 0))
         if discount_percent < 0 or discount_percent > 100:
@@ -348,6 +481,11 @@ def quick_add_customer(request):
                 'error': 'Discount percentage must be between 0 and 100'
             }, status=400)
         
+        # Use default credit limit from settings when not provided
+        credit_limit_raw = data.get("credit_limit")
+        if credit_limit_raw in (None, "", "null"):
+            credit_limit_raw = config.default_credit_limit
+
         customer = Customer.objects.create(
             name=data['name'],
             company_name=data.get('company_name', ''),
@@ -355,7 +493,7 @@ def quick_add_customer(request):
             email=data.get('email', ''),
             address=data.get('address', ''),
             customer_type=data.get('customer_type', 'WHOLESALE'),
-            credit_limit=Decimal(data.get('credit_limit', 0)),
+            credit_limit=parse_decimal(credit_limit_raw, "credit_limit"),
             discount_percent=discount_percent
         )
         
@@ -478,7 +616,14 @@ def invoice_print(request, invoice_id):
     )
     items = invoice.items.select_related('product').all()
     company = CompanyProfile.get_company()
-    
+
+    config = get_config()
+    # System settings affecting invoice print/layout
+    invoice_print_size = config.invoice_print_size
+    show_barcode = config.show_barcode_on_invoice
+    show_item_number = config.show_item_number_on_invoice
+    footer_text = config.invoice_footer_text
+
     # Log print activity
     ActivityLog.log_activity(
         user=request.user,
@@ -490,9 +635,13 @@ def invoice_print(request, invoice_id):
     )
     
     context = {
-        'invoice': invoice,
-        'items': items,
-        'company': company,
+        "invoice": invoice,
+        "items": items,
+        "company": company,
+        "invoice_print_size": invoice_print_size,
+        "show_barcode": show_barcode,
+        "show_item_number": show_item_number,
+        "invoice_footer_text": footer_text,
     }
     
     return render(request, 'invoice_print.html', context)
@@ -536,6 +685,7 @@ def cancel_invoice(request, invoice_id):
 @require_http_methods(["POST"])
 def confirm_draft_invoice(request, invoice_id):
     invoice = get_object_or_404(Invoice, id=invoice_id)
+    config = get_config()
 
     if invoice.status != 'DRAFT':
         return JsonResponse({
@@ -546,7 +696,7 @@ def confirm_draft_invoice(request, invoice_id):
     # Credit check (same as save_invoice)
     if invoice.payment_terms == 'CREDIT' and invoice.balance_due > 0:
         customer = invoice.customer
-        if not customer.can_take_credit(invoice.balance_due):
+        if config.block_credit_if_limit_exceeded and not customer.can_take_credit(invoice.balance_due):
             return JsonResponse({
                 'success': False,
                 'error': f'Credit limit exceeded. Available credit: {customer.get_available_credit()}'

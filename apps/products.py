@@ -6,11 +6,17 @@ from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.urls import reverse
 from .models import (
-    Product, Brand, Supplier, StockAdjustment, 
-    ActivityLog, InvoiceItem
+    Product,
+    Brand,
+    Supplier,
+    StockAdjustment,
+    ActivityLog,
+    InvoiceItem,
+    get_config,
 )
 from .permissions import permission_required
 from decimal import Decimal
+from .configuration import parse_decimal
 
 
 # ==================== PRODUCTS ====================
@@ -83,6 +89,7 @@ def product_create(request):
 
     if request.method == 'POST':
         try:
+            config = get_config()
             # Brand
             brand_id = request.POST.get('brand')
             brand = Brand.objects.get(id=brand_id)
@@ -91,6 +98,11 @@ def product_create(request):
                 stock_qty = Decimal('0')
             else:
                 stock_qty = Decimal(request.POST.get('stock_qty', 0))
+
+            # Default reorder level from settings if not provided
+            reorder_raw = request.POST.get("reorder_level")
+            if reorder_raw in (None, "", "null", ""):
+                reorder_raw = config.default_reorder_level
 
             product = Product.objects.create(
                 sku=request.POST.get('sku'),
@@ -103,7 +115,7 @@ def product_create(request):
                 wholesale_price=Decimal(request.POST.get('wholesale_price')),
                 retail_price=Decimal(request.POST.get('retail_price')),
                 stock_qty=stock_qty,
-                reorder_level=Decimal(request.POST.get('reorder_level', 0)),
+                reorder_level=parse_decimal(reorder_raw, "reorder_level"),
                 batch_no=request.POST.get('batch_no', ''),
                 is_from_LPO=from_lpo,
                 received_LPO=False,

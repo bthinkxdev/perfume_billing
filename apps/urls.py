@@ -19,6 +19,8 @@ urlpatterns = [
     path('login/', auth_views.LoginView.as_view(template_name="registration/login.html"), name='login'),
     # Authentication
     path('logout/', views.user_logout, name='logout'),
+    # System settings
+    path('settings/', views.system_settings_view, name='system_settings'),
     
     # New Bill
     path('bill/new/', views.new_bill, name='new_bill'),

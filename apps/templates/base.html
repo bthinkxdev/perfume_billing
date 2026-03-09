@@ -490,7 +490,7 @@
             
             {% if perm.can_manage_settings %}
             <div class="menu-section">System</div>
-            <a href="#" class="menu-item">
+            <a href="{% url 'apps:system_settings' %}" class="menu-item {% if request.resolver_match.url_name == 'system_settings' %}active{% endif %}">
                 <i class="bi bi-gear"></i>
                 <span>Settings</span>
             </a>
@@ -540,10 +540,12 @@
                             <i class="bi bi-person-circle"></i>
                             <span>My Profile</span>
                         </a> {% endcomment %}
-                        <a href="#" class="user-dropdown-item">
+                        {% if perm.can_manage_settings %}
+                        <a href="{% url 'apps:system_settings' %}" class="user-dropdown-item">
                             <i class="bi bi-gear"></i>
                             <span>Settings</span>
                         </a>
+                        {% endif %}
                         <div class="user-dropdown-divider"></div>
                         <form method="post" action="{% url 'apps:logout' %}" style="margin: 0;">
                             {% csrf_token %}

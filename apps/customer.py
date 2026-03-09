@@ -12,9 +12,15 @@ from decimal import Decimal
 from django.db.models import Min
 from datetime import datetime
 from .models import (
-    Customer, Invoice, Payment, InvoiceItem, 
-    ActivityLog, Product
+    Customer,
+    Invoice,
+    Payment,
+    InvoiceItem,
+    ActivityLog,
+    Product,
+    get_config,
 )
+from .configuration import parse_decimal
 
 
 # ==================== CUSTOMERS ====================
@@ -121,13 +127,20 @@ def customer_create(request):
 
     if request.method == 'POST':
         try:
+            config = get_config()
             phone = _validate_phone(request.POST.get('phone'))
 
             if Customer.objects.filter(phone=phone).exists():
                 phone_error = "Phone number already exists."
                 raise ValueError
 
-            discount_percent = _parse_discount_percent(request.POST.get('discount_percent'))
+            discount_percent = _parse_discount_percent(
+                request.POST.get('discount_percent')
+            )
+
+            credit_limit_raw = request.POST.get('credit_limit')
+            if credit_limit_raw in (None, "", "null"):
+                credit_limit_raw = config.default_credit_limit
             customer = Customer.objects.create(
                 customer_type=request.POST.get('customer_type'),
                 name=request.POST.get('name'),
@@ -135,7 +148,7 @@ def customer_create(request):
                 address=request.POST.get('address', ''),
                 phone=phone,
                 email=request.POST.get('email', ''),
-                credit_limit=Decimal(request.POST.get('credit_limit', 0)),
+                credit_limit=parse_decimal(credit_limit_raw, "credit_limit"),
                 discount_percent=discount_percent,
             )
             messages.success(

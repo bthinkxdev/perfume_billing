@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     CompanyProfile, Customer, Supplier, Brand, Product,
     Invoice, InvoiceItem, Payment, StockAdjustment,
-    PriceOverrideLog, SystemSettings, ActivityLog
+    PriceOverrideLog, AppConfig, ActivityLog
 )
 
 
@@ -82,10 +82,15 @@ class PriceOverrideLogAdmin(admin.ModelAdmin):
     readonly_fields = ['timestamp', 'difference']
 
 
-@admin.register(SystemSettings)
-class SystemSettingsAdmin(admin.ModelAdmin):
-    list_display = ['key', 'value', 'updated_at']
-    search_fields = ['key']
+@admin.register(AppConfig)
+class AppConfigAdmin(admin.ModelAdmin):
+    list_display = ['id', 'invoice_prefix', 'default_payment_term', 'timezone', 'updated_at']
+
+    def has_add_permission(self, request):
+        return not AppConfig.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(ActivityLog)

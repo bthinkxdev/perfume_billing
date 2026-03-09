@@ -48,6 +48,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Use DB-driven timezone from system settings instead of hard-coded TIME_ZONE
+    'apps.middleware.SystemTimezoneMiddleware',
 ]
 
 ROOT_URLCONF = 'billing_system.urls'
